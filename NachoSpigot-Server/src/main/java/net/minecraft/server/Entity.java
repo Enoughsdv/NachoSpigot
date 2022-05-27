@@ -8,7 +8,10 @@ import java.util.concurrent.Callable;
 
 // CraftBukkit start
 import com.eatthepath.uuid.FastUUID;
+import dev.cobblesword.nachospigot.Nacho;
 import dev.cobblesword.nachospigot.commons.Constants;
+import dev.cobblesword.nachospigot.knockback.KnockbackProfile;
+import me.elier.nachospigot.config.NachoConfig;
 import org.apache.logging.log4j.LogManager;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -116,16 +119,16 @@ public abstract class Entity implements ICommandListener {
         int chunkY = MathHelper.floor(locY / 16.0D);
         int chunkZ = MathHelper.floor(locZ / 16.0D);
 
-        return ad && getChunkX() == chunkX && getChunkY() == chunkY || getChunkZ() == chunkZ;
+        return ad && this.chunkX == chunkX && this.chunkY == chunkY || this.chunkZ == chunkZ; // Nacho - deobfuscate chunkX, chunkY, chunkZ
     }
-    public int ae; public int getChunkX() { return ae; } // PAIL
-    public int af; public int getChunkY() { return af; } // PAIL
-    public int ag; public int getChunkZ() { return ag; } // PAIL
+    public int chunkX; // Nacho - deobfuscate
+    public int chunkY; // Nacho - deobfuscate
+    public int chunkZ; // Nacho - deobfuscate
     // PaperSpigot end
     public boolean ah;
     public boolean ai;
     public int portalCooldown;
-    protected boolean ak; public final boolean inPortal() { return this.ak; } // Paper - OBFHELPER
+    protected boolean inPortal; // Nacho - deobfuscate inPortal
     protected int al;
     public int dimension;
     protected BlockPosition an;
@@ -163,6 +166,11 @@ public abstract class Entity implements ICommandListener {
     public void inactiveTick() { }
     // Spigot end
 
+    // Migot start
+    private boolean isInLava;
+    private int lastLavaCheck = Integer.MIN_VALUE;
+    // Migot end
+	
     public int getId() {
         return this.id;
     }
@@ -311,7 +319,7 @@ public abstract class Entity implements ICommandListener {
             MinecraftServer minecraftserver = ((WorldServer) this.world).getMinecraftServer();
             int i = this.L();
 
-            if (this.ak) {
+            if (this.inPortal) { // Nacho - deobfuscate inPortal
                 if (true || minecraftserver.getAllowNether()) { // CraftBukkit
                     if (this.vehicle == null && this.al++ >= i) {
                         this.al = i;
@@ -327,7 +335,7 @@ public abstract class Entity implements ICommandListener {
                         this.c(b0);
                     }
 
-                    this.ak = false;
+                    this.inPortal = false; // Nacho - deobfuscate inPortal
                 }
             } else {
                 if (this.al > 0) {
@@ -475,6 +483,8 @@ public abstract class Entity implements ICommandListener {
 
 
     public void move(double d0, double d1, double d2) {
+        // Check if we're moving
+        if (d0 == 0 && d1 == 0 && d2 == 0 && this.vehicle == null && this.passenger == null) { return; }
         if (this.loadChunks) loadChunks(); // PaperSpigot - Load chunks
         if (this.noclip) {
             this.a(this.getBoundingBox().c(d0, d1, d2));
@@ -503,10 +513,6 @@ public abstract class Entity implements ICommandListener {
 
                 this.appendEntityCrashDetails(crashreportsystemdetails);
                 throw new ReportedException(crashreport);
-            }
-            // Check if we're moving
-            if (d0 == 0 && d1 == 0 && d2 == 0 && this.vehicle == null && this.passenger == null) {
-                return;
             }
             // CraftBukkit end
             this.world.methodProfiler.a("move");
@@ -1068,7 +1074,15 @@ public abstract class Entity implements ICommandListener {
     }
 
     public boolean ab() {
-        return this.world.a(this.getBoundingBox().grow(-0.10000000149011612D, -0.4000000059604645D, -0.10000000149011612D), Material.LAVA);
+        // Migot start - Check for lava only once per tick
+	// return this.world.a(this.getBoundingBox().grow(-0.10000000149011612D, -0.4000000059604645D, -0.10000000149011612D), Material.LAVA);
+	int currentTick = MinecraftServer.currentTick;
+        if (this.lastLavaCheck != currentTick) {
+            this.lastLavaCheck = currentTick;
+            this.isInLava = this.world.a(this.getBoundingBox().grow(-0.10000000149011612D, -0.4000000059604645D, -0.10000000149011612D), Material.LAVA);
+        }
+        return this.isInLava;
+	// Migot end
     }
 
     public void a(float f, float f1, float f2) {
@@ -1182,11 +1196,39 @@ public abstract class Entity implements ICommandListener {
     }
 
     public double h(Entity entity) {
-        double d0 = this.locX - entity.locX;
-        double d1 = this.locY - entity.locY;
-        double d2 = this.locZ - entity.locZ;
+        // Nacho start - improved hit reg
+        if (NachoConfig.enableImprovedHitReg && entity instanceof EntityPlayer && this instanceof EntityPlayer) {
+            /* Location loc = Nacho.get().getLagCompensator().getHistoryLocation(
+                    ((EntityPlayer) entity).getBukkitEntity()
+            );*/
 
-        return d0 * d0 + d1 * d1 + d2 * d2;
+        	EntityPlayer entityPlayer = (EntityPlayer) entity;
+            EntityPlayer player = (EntityPlayer) this;
+        	
+        	Location loc;
+        	if (entityPlayer.playerConnection.getClass().equals(PlayerConnection.class)
+                    && player.playerConnection.getClass().equals(PlayerConnection.class)) {
+                loc = Nacho.get().getLagCompensator().getHistoryLocation(
+                        entityPlayer.getBukkitEntity(),
+                        player.ping
+                );
+        	} else {
+        		loc = entityPlayer.getBukkitEntity().getLocation();
+        	}
+                // Nacho end
+
+            double d0 = this.locX - loc.getX();
+            double d1 = this.locY - loc.getY();
+            double d2 = this.locZ - loc.getZ();
+
+            return d0 * d0 + d1 * d1 + d2 * d2;
+        } else {
+            double d0 = this.locX - entity.locX;
+            double d1 = this.locY - entity.locY;
+            double d2 = this.locZ - entity.locZ;
+
+            return d0 * d0 + d1 * d1 + d2 * d2;
+        }
     }
 
     public void d(EntityHuman entityhuman) {}
@@ -1568,7 +1610,7 @@ public abstract class Entity implements ICommandListener {
                 int l = MathHelper.floor(this.locZ + (double) (((float) ((i >> 2) % 2) - 0.5F) * this.width * 0.8F));
 
                 if (blockposition_mutableblockposition.getX() != k || blockposition_mutableblockposition.getY() != j || blockposition_mutableblockposition.getZ() != l) {
-                    blockposition_mutableblockposition.c(k, j, l);
+                    blockposition_mutableblockposition.setValues(k, j, l); // Nacho - deobfuscate setValues
                     if (this.world.getType(blockposition_mutableblockposition).getBlock().w()) {
                         return true;
                     }
@@ -1657,6 +1699,8 @@ public abstract class Entity implements ICommandListener {
 
     // CraftBukkit start
     protected CraftEntity bukkitEntity;
+
+    public boolean hasBukkitEntity() { return bukkitEntity != null; }
 
     public CraftEntity getBukkitEntity() {
         if (bukkitEntity == null) {
@@ -1778,7 +1822,7 @@ public abstract class Entity implements ICommandListener {
                 this.ap = shapedetector_shapedetectorcollection.b();
             }
 
-            this.ak = true;
+            this.inPortal = true; // Nacho - deobfuscate inPortal
         }
     }
 
@@ -1812,6 +1856,15 @@ public abstract class Entity implements ICommandListener {
 
     public boolean isSprinting() {
         return this.g(3);
+    }
+
+    public boolean extraKnockback;
+
+    public void setExtraKnockback(boolean flag) {
+        this.extraKnockback = flag;
+    }
+    public boolean isExtraKnockback() {
+        return this.extraKnockback;
     }
 
     public void setSprinting(boolean flag) {
@@ -2358,5 +2411,15 @@ public abstract class Entity implements ICommandListener {
         }
 
         EnchantmentManager.b(entityliving, entity);
+    }
+
+    private KnockbackProfile knockbackProfile;
+
+    public KnockbackProfile getKnockbackProfile() {
+        return knockbackProfile;
+    }
+
+    public void setKnockbackProfile(KnockbackProfile profile) {
+        this.knockbackProfile = profile;
     }
 }

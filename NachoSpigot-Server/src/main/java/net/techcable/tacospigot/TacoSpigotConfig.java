@@ -5,15 +5,11 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Level;
 
-import net.minecraft.server.MinecraftServer;
-
+import dev.cobblesword.nachospigot.Nacho;
 import org.bukkit.Bukkit;
-import org.bukkit.command.Command;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -24,7 +20,7 @@ public class TacoSpigotConfig {
     private static File CONFIG_FILE;
     private static final String HEADER = "This is the main configuration file for TacoSpigot.\n" + "As you can see, there's tons to configure. Some options may impact gameplay, so use\n" + "with caution, and make sure you know what each option does before configuring.\n" + "\n" + "If you need help with the configuration or have any questions related to TacoSpigot,\n" + "join us at the IRC.\n" + "\n" + "IRC: #taco @ irc.spi.gt ( http://irc.spi.gt/iris/?channels=taco )\n";
     /*========================================================================*/
-    static YamlConfiguration config;
+    public static YamlConfiguration config; // Nacho - make public
     static int version;
     /*========================================================================*/
 
@@ -32,7 +28,7 @@ public class TacoSpigotConfig {
         CONFIG_FILE = configFile;
         config = new YamlConfiguration();
         try {
-            System.out.println("Loading TacoSpigot config from " + configFile.getName());
+            Nacho.LOGGER.info("Loading TacoSpigot config from " + configFile.getName());
             config.load(CONFIG_FILE);
         } catch (IOException ignored) {
         } catch (InvalidConfigurationException ex) {

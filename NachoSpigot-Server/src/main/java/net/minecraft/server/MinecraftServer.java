@@ -9,7 +9,6 @@ import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.GameProfileRepository;
 import com.mojang.authlib.minecraft.MinecraftSessionService;
 import com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService;
-import dev.cobblesword.nachospigot.Nacho;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufOutputStream;
 import io.netty.buffer.Unpooled;
@@ -35,6 +34,7 @@ import java.util.concurrent.FutureTask;
 import javax.imageio.ImageIO;
 
 import io.netty.util.ResourceLeakDetector;
+import me.elier.nachospigot.config.NachoConfig;
 import org.apache.commons.lang3.Validate;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -51,7 +51,7 @@ import xyz.sculas.nacho.async.AsyncExplosions;
 
 public abstract class MinecraftServer implements Runnable, ICommandListener, IAsyncTaskHandler, IMojangStatistics {
 
-    public static final Logger LOGGER = LogManager.getLogger();
+    public static final Logger LOGGER = LogManager.getLogger(MinecraftServer.class);
     public static final File a = new File("usercache.json");
     private static MinecraftServer l;
     public Convertable convertable;
@@ -64,9 +64,9 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
     private final ServerPing r = new ServerPing();
     private final Random s = new Random();
     private String serverIp;
-    private int u = -1; public int getServerPort() { return u; } // Nacho - OBFHELPER
+    protected int port = -1; // Nacho - private -> protected, deobfuscate
     public WorldServer[] worldServer;
-    private PlayerList v;
+    private PlayerList playerList; // Nacho - deobfuscate
     private boolean isRunning = true;
     private boolean isStopped;
     private int ticks;
@@ -454,10 +454,10 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
                 this.aq().stopServer();
             }
 
-            if (this.v != null) {
+            if (this.playerList != null) { // Nacho - deobfuscate playerList
                 MinecraftServer.LOGGER.info("Saving players");
-                this.v.savePlayers();
-                this.v.u();
+                this.playerList.savePlayers(); // Nacho - deobfuscate playerList
+                this.playerList.u(); // Nacho - deobfuscate playerList
                 try { Thread.sleep(100); } catch (InterruptedException ex) {} // CraftBukkit - SPIGOT-625 - give server at least a chance to send packets
             }
 
@@ -728,7 +728,7 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
             int j = MathHelper.nextInt(this.s, 0, this.I() - agameprofile.length);
 
             for (int k = 0; k < agameprofile.length; ++k) {
-                agameprofile[k] = ((EntityPlayer) this.v.v().get(j + k)).getProfile();
+                agameprofile[k] = ((EntityPlayer) this.playerList.v().get(j + k)).getProfile(); // Nacho - deobfuscate playerList
             }
 
             Collections.shuffle(Arrays.asList(agameprofile));
@@ -738,7 +738,7 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
         if (autosavePeriod > 0 && this.ticks % autosavePeriod == 0) { // CraftBukkit
             SpigotTimings.worldSaveTimer.startTiming(); // Spigot
             this.methodProfiler.a("save");
-            this.v.savePlayers();
+            this.playerList.savePlayers();
             // Spigot Start
             // We replace this with saving each individual world as this.saveChunks(...) is broken,
             // and causes the main thread to sleep for random amounts of time depending on chunk activity
@@ -909,7 +909,7 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
         SpigotTimings.connectionTimer.stopTiming(); // Spigot
         this.methodProfiler.c("players");
         SpigotTimings.playerListTimer.startTiming(); // Spigot
-        this.v.tick();
+        this.playerList.tick(); // Nacho - deobfuscate playerList
         SpigotTimings.playerListTimer.stopTiming(); // Spigot
         this.methodProfiler.c("tickables");
 
@@ -1074,7 +1074,7 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
     }
 
     public int F() {
-        return this.u;
+        return this.port;
     }
 
     public String G() {
@@ -1086,19 +1086,19 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
     }
 
     public int I() {
-        return this.v.getPlayerCount();
+        return this.playerList.getPlayerCount(); // Nacho - deobfuscate playerList
     }
 
     public int J() {
-        return this.v.getMaxPlayers();
+        return this.playerList.getMaxPlayers(); // Nacho - deobfuscate playerList
     }
 
     public String[] getPlayers() {
-        return this.v.f();
+        return this.playerList.f(); // Nacho - deobfuscate playerList
     }
 
     public GameProfile[] L() {
-        return this.v.g();
+        return this.playerList.g(); // Nacho - deobfuscate playerList
     }
 
     public boolean isDebugging() {
@@ -1117,7 +1117,7 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
     }
 
     public String getServerModName() {
-        return Nacho.get().getConfig().serverBrandName; // [Nacho-0035] // NachoSpigot - NachoSpigot >  // TacoSpigot - TacoSpigot // PaperSpigot - PaperSpigot > // Spigot - Spigot > // CraftBukkit - cb > vanilla!
+        return NachoConfig.serverBrandName; // [Nacho-0035] // NachoSpigot - NachoSpigot >  // TacoSpigot - TacoSpigot // PaperSpigot - PaperSpigot > // Spigot - Spigot > // CraftBukkit - cb > vanilla!
     }
 
     public CrashReport b(CrashReport crashreport) {
@@ -1130,10 +1130,10 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
                 return this.a();
             }
         });
-        if (this.v != null) {
+        if (this.playerList != null) { // Nacho - deobfuscate playerList
             crashreport.g().a("Player Count", new Callable() {
                 public String a() {
-                    return MinecraftServer.this.v.getPlayerCount() + " / " + MinecraftServer.this.v.getMaxPlayers() + "; " + MinecraftServer.this.v.v();
+                    return MinecraftServer.this.playerList.getPlayerCount() + " / " + MinecraftServer.this.playerList.getMaxPlayers() + "; " + MinecraftServer.this.playerList.v(); // Nacho - deobfuscate playerList
                 }
 
                 public Object call() throws Exception {
@@ -1218,12 +1218,12 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
         return this.H;
     }
 
-    public int R() {
-        return this.u;
+    public int getPort() { // Nacho - deobfuscate
+        return this.port; // Nacho - deobfuscate port
     }
 
     public void setPort(int i) {
-        this.u = i;
+        this.port = i; // Nacho - deobfuscate port
     }
 
     public String S() {
@@ -1318,10 +1318,10 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
     public void a(MojangStatisticsGenerator mojangstatisticsgenerator) {
         mojangstatisticsgenerator.a("whitelist_enabled", Boolean.FALSE);
         mojangstatisticsgenerator.a("whitelist_count", 0);
-        if (this.v != null) {
+        if (this.playerList != null) { // Nacho - deobfuscate playerList
             mojangstatisticsgenerator.a("players_current", this.I());
             mojangstatisticsgenerator.a("players_max", this.J());
-            mojangstatisticsgenerator.a("players_seen", this.v.getSeenPlayers().length);
+            mojangstatisticsgenerator.a("players_seen", this.playerList.getSeenPlayers().length); // Nacho - deobfuscate playerList
         }
 
         mojangstatisticsgenerator.a("uses_auth", this.onlineMode);
@@ -1433,11 +1433,11 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
     }
 
     public PlayerList getPlayerList() {
-        return this.v;
+        return this.playerList; // Nacho - deobfuscate playerList
     }
 
-    public void a(PlayerList playerlist) {
-        this.v = playerlist;
+    public void setPlayerList(PlayerList playerlist) { // Nacho - deobfuscate
+        this.playerList = playerlist; // Nacho - deobfuscate playerList
     }
 
     public void setGamemode(WorldSettings.EnumGamemode worldsettings_enumgamemode) {
@@ -1593,7 +1593,7 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
             try {
                 return Futures.immediateFuture(callable.call());
             } catch (Exception exception) {
-                return Futures.immediateFailedCheckedFuture(exception);
+                return Futures.immediateFailedFuture(exception);
             }
         }
     }

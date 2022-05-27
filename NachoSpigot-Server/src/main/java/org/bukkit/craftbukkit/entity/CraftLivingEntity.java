@@ -7,6 +7,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import dev.cobblesword.nachospigot.knockback.KnockbackProfile;
 import net.minecraft.server.DamageSource;
 import net.minecraft.server.EntityArmorStand;
 import net.minecraft.server.EntityArrow;
@@ -53,6 +54,7 @@ import org.bukkit.entity.Snowball;
 import org.bukkit.entity.ThrownExpBottle;
 import org.bukkit.entity.ThrownPotion;
 import org.bukkit.entity.WitherSkull;
+import org.bukkit.event.entity.EntityRegainHealthEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.EntityEquipment;
 import org.bukkit.inventory.ItemStack;
@@ -539,4 +541,25 @@ public class CraftLivingEntity extends CraftEntity implements LivingEntity {
             ((EntityInsentient) getHandle()).setPullWhileLeashed(pullWhileLeashed);
     }
     // TacoSpigot end
+
+    // Nacho start
+    public void heal(float amount){
+        if(getHealth() + amount <= getMaxHealth()) getHandle().heal(amount);
+    }
+
+    public void heal(float amount, EntityRegainHealthEvent.RegainReason reason){
+        if(getHealth() + amount <= getMaxHealth())
+            getHandle().heal(amount, reason);
+    }
+    // Nacho end
+
+    @Override
+    public KnockbackProfile getKnockbackProfile() {
+        return getHandle().getKnockbackProfile();
+    }
+
+    @Override
+    public void setKnockbackProfile(KnockbackProfile profile) {
+        getHandle().setKnockbackProfile(profile);
+    }
 }

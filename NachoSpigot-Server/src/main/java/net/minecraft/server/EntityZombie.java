@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.UUID;
 
 //CraftBukkit start
-import org.bukkit.craftbukkit.entity.CraftLivingEntity;
+import com.destroystokyo.paper.PaperConfig;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityCombustByEntityEvent;
 import org.bukkit.event.entity.EntityCombustEvent;
@@ -16,7 +16,7 @@ public class EntityZombie extends EntityMonster {
 
     protected static final IAttribute a = (new AttributeRanged((IAttribute) null, "zombie.spawnReinforcements", 0.0D, 0.0D, 1.0D)).a("Spawn Reinforcements Chance");
     private static final UUID b = UUID.fromString("B9766B59-9566-4402-BC1F-2EE2A276D836");
-    private static final AttributeModifier c = new AttributeModifier(EntityZombie.b, "Baby speed boost", org.github.paperspigot.PaperSpigotConfig.babyZombieMovementSpeed, 1); // PaperSpigot - Configurable baby zombie movement speed
+    private static final AttributeModifier c = new AttributeModifier(EntityZombie.b, "Baby speed boost", PaperConfig.babyZombieMovementSpeed, 1); // PaperSpigot - Configurable baby zombie movement speed
     private final PathfinderGoalBreakDoor bm = new PathfinderGoalBreakDoor(this);
     private int bn;
     private boolean bo = false;
@@ -508,7 +508,7 @@ public class EntityZombie extends EntityMonster {
             for (int k = (int) this.locX - 4; k < (int) this.locX + 4 && j < 14; ++k) {
                 for (int l = (int) this.locY - 4; l < (int) this.locY + 4 && j < 14; ++l) {
                     for (int i1 = (int) this.locZ - 4; i1 < (int) this.locZ + 4 && j < 14; ++i1) {
-                        Block block = this.world.getType(blockposition_mutableblockposition.c(k, l, i1)).getBlock();
+                        Block block = this.world.getType(blockposition_mutableblockposition.setValues(k, l, i1)).getBlock(); // Nacho - deobfuscate setValues
 
                         if (block == Blocks.IRON_BARS || block == Blocks.BED) {
                             if (this.random.nextFloat() < 0.3F) {

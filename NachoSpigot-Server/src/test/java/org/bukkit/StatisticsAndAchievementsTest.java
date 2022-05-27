@@ -3,7 +3,6 @@ package org.bukkit;
 import static org.junit.Assert.*;
 import static org.hamcrest.Matchers.*;
 
-import java.util.Collections;
 import java.util.List;
 
 import net.minecraft.server.AchievementList;
@@ -18,8 +17,7 @@ import com.google.common.collect.Lists;
 
 public class StatisticsAndAchievementsTest extends AbstractTestingBase {
     @Test
-    @SuppressWarnings("unchecked")
-    public void verifyAchievementMapping() throws Throwable {
+    public void verifyAchievementMapping() {
         List<Achievement> achievements = Lists.newArrayList(Achievement.values());
         for (net.minecraft.server.Achievement achievement : (List<net.minecraft.server.Achievement>) AchievementList.e) {
             String name = achievement.name;
@@ -36,10 +34,9 @@ public class StatisticsAndAchievementsTest extends AbstractTestingBase {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
-    public void verifyStatisticMapping() throws Throwable {
+    public void verifyStatisticMapping() {
         HashMultiset<Statistic> statistics = HashMultiset.create();
-        for (net.minecraft.server.Statistic statistic : (List<net.minecraft.server.Statistic>) StatisticList.stats) {
+        for (net.minecraft.server.Statistic statistic : StatisticList.stats) {
             if (statistic instanceof net.minecraft.server.Achievement) {
                 continue;
             }

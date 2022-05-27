@@ -1,9 +1,13 @@
 package net.minecraft.server;
 
+import com.destroystokyo.paper.PaperWorldConfig;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import dev.cobblesword.nachospigot.Nacho;
+import me.elier.nachospigot.config.NachoConfig;
+import me.elier.nachospigot.config.NachoWorldConfig;
 import me.suicidalkids.ion.movement.MovementCache;
 import org.bukkit.Bukkit;
 import org.bukkit.block.BlockState;
@@ -11,17 +15,15 @@ import org.bukkit.craftbukkit.CraftServer;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.craftbukkit.event.CraftEventFactory;
 import org.bukkit.craftbukkit.util.CraftMagicNumbers;
-import org.bukkit.craftbukkit.util.LongHashSet;
 import org.bukkit.event.block.BlockCanBuildEvent;
 import org.bukkit.event.block.BlockPhysicsEvent;
 import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
 import org.bukkit.generator.ChunkGenerator;
-import co.aikar.timings.SpigotTimings;
+
+import dev.cobblesword.nachospigot.commons.OptimizedWorldTileEntitySet;
 
 import java.util.*;
 import java.util.concurrent.Callable;
-
-import dev.cobblesword.nachospigot.Nacho;
 
 // PaperSpigot start
 import java.util.concurrent.ExecutorService;
@@ -29,8 +31,7 @@ import java.util.concurrent.Executors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 // PaperSpigot end
 
-// CraftBukkit start
-// CraftBukkit end
+import net.jafama.FastMath;
 
 public abstract class World implements IBlockAccess {
 
@@ -64,7 +65,7 @@ public abstract class World implements IBlockAccess {
     // Spigot end
     protected final Set<Entity> g = Sets.newHashSet(); // Paper
     //public final List<TileEntity> h = Lists.newArrayList(); // PaperSpigot - Remove unused list
-    public final List<TileEntity> tileEntityList = Lists.newArrayList();
+    public final OptimizedWorldTileEntitySet tileEntityList = new OptimizedWorldTileEntitySet();
     private final List<TileEntity> b = Lists.newArrayList();
     private final Set<TileEntity> c = Sets.newHashSet(); public Set<TileEntity> getTileEntityListUnload() { return c; }// Paper
     public final List<EntityHuman> players = Lists.newArrayList();
@@ -172,10 +173,11 @@ public abstract class World implements IBlockAccess {
 
     public final org.spigotmc.SpigotWorldConfig spigotConfig; // Spigot
 
-    public final org.github.paperspigot.PaperSpigotWorldConfig paperSpigotConfig; // PaperSpigot
+    public final PaperWorldConfig paperSpigotConfig; // PaperSpigot
 
     public final co.aikar.timings.WorldTimingsHandler timings; // Spigot
-    public final net.techcable.tacospigot.TacoSpigotWorldConfig tacoSpigotConfig;
+    public final net.techcable.tacospigot.TacoSpigotWorldConfig tacoSpigotConfig; // TacoSpigot
+    public final NachoWorldConfig nachoSpigotConfig; // NachoSpigot
 
     public CraftWorld getWorld() {
         return this.world;
@@ -191,8 +193,9 @@ public abstract class World implements IBlockAccess {
 
     protected World(IDataManager idatamanager, WorldData worlddata, WorldProvider worldprovider, MethodProfiler methodprofiler, boolean flag, ChunkGenerator gen, org.bukkit.World.Environment env) {
         this.spigotConfig = new org.spigotmc.SpigotWorldConfig( worlddata.getName() ); // Spigot
-        this.paperSpigotConfig = new org.github.paperspigot.PaperSpigotWorldConfig( worlddata.getName() ); // PaperSpigot
+        this.paperSpigotConfig = new PaperWorldConfig( worlddata.getName() ); // PaperSpigot
         this.tacoSpigotConfig = new net.techcable.tacospigot.TacoSpigotWorldConfig(worlddata.getName()); // TacoSpigot
+        this.nachoSpigotConfig = new NachoWorldConfig(worlddata.getName()); // NachoSpigot
         this.generator = gen;
         this.world = new CraftWorld((WorldServer) this, gen, env);
         this.ticksPerAnimalSpawns = this.getServer().getTicksPerAnimalSpawns(); // CraftBukkit
@@ -588,6 +591,8 @@ public abstract class World implements IBlockAccess {
     }
 
     public void applyPhysics(BlockPosition blockposition, Block block) {
+	    if (this.captureBlockStates) return;
+	    
         this.d(blockposition.west(), block);
         this.d(blockposition.east(), block);
         this.d(blockposition.down(), block);
@@ -783,6 +788,8 @@ public abstract class World implements IBlockAccess {
                 if (blockposition.getY() >= 256) {
                     blockposition = new BlockPosition(blockposition.getX(), 255, blockposition.getZ());
                 }
+
+                if (!this.isLoaded(blockposition)) return 0; // Paper
 
                 Chunk chunk = this.getChunkAtWorldCoords(blockposition);
 
@@ -1157,11 +1164,14 @@ public abstract class World implements IBlockAccess {
         }
     }
 
-    public void makeSound(Entity entity, String s, float f, float f1) {
-        for (IWorldAccess iWorldAccess : this.u) {
-            iWorldAccess.a(s, entity.locX, entity.locY, entity.locZ, f, f1);
+    public void makeSound(final Entity entity, final String s, final float f, final float f1) {
+        for (final IWorldAccess iWorldAccess : this.u) {
+            if (entity instanceof EntityHuman) {
+                iWorldAccess.a((EntityHuman) entity, s, entity.locX, entity.locY, entity.locZ, f, f1);
+            } else {
+                iWorldAccess.a(s, entity.locX, entity.locY, entity.locZ, f, f1);
+            }
         }
-
     }
 
     public void a(EntityHuman entityhuman, String s, float f, float f1) {
@@ -1341,12 +1351,12 @@ public abstract class World implements IBlockAccess {
         }
 
 //        if (!guardEntityList) { // Spigot - It will get removed after the tick if we are ticking // Paper - moved down
-        int i = entity.ae;
-        int j = entity.ag;
+        int i = entity.chunkX; // Nacho - deobfuscate chunkX
+        int j = entity.chunkZ; // Nacho - deobfuscate chunkZ
 
         Chunk chunk = this.getChunkIfLoaded(i, j);
         if (entity.ad && chunk != null) {
-            chunk.b(entity);
+            chunk.removeEntity(entity); // Nacho - deobfuscate removeEntity
         }
 
         if (!guardEntityList) { // Spigot - It will get removed after the tick if we are ticking // Paper - always remove from current chunk above
@@ -1503,9 +1513,9 @@ public abstract class World implements IBlockAccess {
 
         for (int k1 = i; k1 < j; ++k1) {
             for (int l1 = i1; l1 < j1; ++l1) {
-                if (this.isLoaded(blockposition_mutableblockposition.c(k1, 64, l1))) {
+                if (this.isLoaded(blockposition_mutableblockposition.setValues(k1, 64, l1))) { // Nacho - deobfuscate setValues
                     for (int i2 = k - 1; i2 < l; ++i2) {
-                        blockposition_mutableblockposition.c(k1, i2, l1);
+                        blockposition_mutableblockposition.setValues(k1, i2, l1); // Nacho - deobfuscate setValues
                         IBlockData iblockdata;
 
                         if (k1 >= -30000000 && k1 < 30000000 && l1 >= -30000000 && l1 < 30000000) {
@@ -1623,10 +1633,10 @@ public abstract class World implements IBlockAccess {
 
         // Paper start - Set based removal lists
         for (Entity e : this.g) {
-            j = e.ae;//getChunkX
-            k = e.ag;//getChunkZ
+            j = e.chunkX; // Nacho - deobfuscate chunkX
+            k = e.chunkZ; // Nacho - deobfuscate chunkZ
             if (e.ad && this.isChunkLoaded(j, k, true)) {
-                this.getChunkAt(j, k).b(e);
+                this.getChunkAt(j, k).removeEntity(e); // Nacho - deobfuscate removeEntity
             }
         }
 
@@ -1670,7 +1680,7 @@ public abstract class World implements IBlockAccess {
                 } catch (Throwable throwable1) {
                     // PaperSpigot start - Prevent tile entity and entity crashes
                     entity.tickTimer.stopTiming();
-                    System.err.println("Entity threw exception at " + entity.world.getWorld().getName() + ":" + entity.locX + "," + entity.locY + "," + entity.locZ);
+                    Nacho.LOGGER.error("Entity threw exception at " + entity.world.getWorld().getName() + ":" + entity.locX + "," + entity.locY + "," + entity.locZ);
                     throwable1.printStackTrace();
                     entity.dead = true;
                     continue;
@@ -1681,10 +1691,10 @@ public abstract class World implements IBlockAccess {
             this.methodProfiler.b();
             this.methodProfiler.a("remove");
             if (entity.dead) {
-                j = entity.ae;
-                k = entity.ag;
+                j = entity.chunkX; // Nacho - deobfuscate chunkX
+                k = entity.chunkZ; // Nacho - deobfuscate chunkZ
                 if (entity.ad && this.isChunkLoaded(j, k, true)) {
-                    this.getChunkAt(j, k).b(entity);
+                    this.getChunkAt(j, k).removeEntity(entity); // Nacho - deobfuscate removeEntity
                 }
 
                 guardEntityList = false; // Spigot
@@ -1707,7 +1717,7 @@ public abstract class World implements IBlockAccess {
             // Paper start - Use alternate implementation with faster contains
             java.util.Set<TileEntity> toRemove = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
             toRemove.addAll(this.getTileEntityListUnload());
-            this.getTileEntityListUnload().removeAll(toRemove);
+            this.tileEntityList.removeAll(toRemove);
             // Paper end
 //            this.tileEntityList.removeAll(this.c);//c  == tileEntityListUnload
             //this.h.removeAll(this.c); // PaperSpigot - Remove unused list
@@ -1717,14 +1727,15 @@ public abstract class World implements IBlockAccess {
 
         // Spigot start
         int tilesThisCycle = 0;
-        for (tileTickPosition = 0; tileTickPosition < tileEntityList.size(); tileTickPosition++) { // PaperSpigot - Disable tick limiters
+        Iterator<TileEntity> tileIterator = this.tileEntityList.tickIterator(this.getTime());
+        while (tileIterator.hasNext()) { // PaperSpigot - Disable tick limiters
             tileTickPosition = (tileTickPosition < tileEntityList.size()) ? tileTickPosition : 0;
-            TileEntity tileentity = (TileEntity) this.tileEntityList.get(tileTickPosition);
+            TileEntity tileentity = (TileEntity) tileIterator.next();
             // Spigot start
             if (tileentity == null) {
                 getServer().getLogger().severe("Spigot has detected a null entity and has removed it, preventing a crash");
                 tilesThisCycle--;
-                this.tileEntityList.remove(tileTickPosition--);
+                tileIterator.remove();
                 continue;
             }
             // Spigot end
@@ -1733,20 +1744,22 @@ public abstract class World implements IBlockAccess {
                 BlockPosition blockposition = tileentity.getPosition();
 
                 if (this.isLoaded(blockposition) && this.N.a(blockposition)) {
-                    try {                            
+                    try {           
+			// Nacho start - Fix mob spawners still spawning mobs after being broken
 			if (this.getTileEntity(tileentity.getPosition()) == null){
-                            tileEntityList.remove(tileentity); //[Nacho-Spigot] Ghost Spawner Bug fixed By BeyazPolis
+                            tileIterator.remove();
                             continue;
                         }
+			// Nacho end
                         tileentity.tickTimer.startTiming(); // Spigot
                         ((IUpdatePlayerListBox) tileentity).c();
                     } catch (Throwable throwable2) {
                         // PaperSpigot start - Prevent tile entity and entity crashes
                         tileentity.tickTimer.stopTiming();
-                        System.err.println("TileEntity threw exception at " + tileentity.world.getWorld().getName() + ":" + tileentity.position.getX() + "," + tileentity.position.getY() + "," + tileentity.position.getZ());
+                        Nacho.LOGGER.error("TileEntity threw exception at " + tileentity.world.getWorld().getName() + ":" + tileentity.position.getX() + "," + tileentity.position.getY() + "," + tileentity.position.getZ());
                         throwable2.printStackTrace();
                         tilesThisCycle--;
-                        this.tileEntityList.remove(tileTickPosition--);
+                        tileIterator.remove();
                         continue;
                         // PaperSpigot end
                     }
@@ -1760,7 +1773,7 @@ public abstract class World implements IBlockAccess {
 
             if (tileentity.x()) {
                 tilesThisCycle--;
-                this.tileEntityList.remove(tileTickPosition--);
+                tileIterator.remove();
                 //this.h.remove(tileentity); // PaperSpigot - Remove unused list
                 if (this.isLoaded(tileentity.getPosition())) {
                     this.getChunkAtWorldCoords(tileentity.getPosition()).e(tileentity.getPosition());
@@ -1847,7 +1860,7 @@ public abstract class World implements IBlockAccess {
         byte b0 = 32;
 
         // Spigot start
-        if ((!org.spigotmc.ActivationRange.checkIfActive(entity)) && (Nacho.get().getConfig().enableEntityActivation)) {
+        if ((!org.spigotmc.ActivationRange.checkIfActive(entity)) && (nachoSpigotConfig.enableEntityActivation)) {
             entity.ticksLived++;
             entity.inactiveTick();
             // PaperSpigot start - Remove entities in unloaded chunks
@@ -1897,13 +1910,16 @@ public abstract class World implements IBlockAccess {
             }
 
             int k = MathHelper.floor(entity.locX / 16.0D);
-            int l = MathHelper.floor(entity.locY / 16.0D);
+            //int l = MathHelper.floor(entity.locY / 16.0D);
+            int l = Math.min(15, Math.max(0, MathHelper.floor(entity.locY / 16.0D))); // Paper - stay consistent with chunk add/remove behavior
             int i1 = MathHelper.floor(entity.locZ / 16.0D);
 
-            if (!entity.ad || entity.ae != k || entity.af != l || entity.ag != i1) {
+            // Nacho start - deobfuscate chunkX, chunkY, chunkZ removeEntity
+            if (!entity.ad || entity.chunkX != k || entity.chunkY != l || entity.chunkZ != i1) {
                 if (entity.loadChunks) entity.loadChunks(); // PaperSpigot - Force load chunks
-                if (entity.ad && this.isChunkLoaded(entity.ae, entity.ag, true)) {
-                    this.getChunkAt(entity.ae, entity.ag).a(entity, entity.af);
+                if (entity.ad && this.isChunkLoaded(entity.chunkX, entity.chunkZ, true)) {
+                    this.getChunkAt(entity.chunkX, entity.chunkZ).removeEntity(entity, entity.chunkY);
+                    // Nacho end
                 }
 
                 if (this.isChunkLoaded(k, i1, true)) {
@@ -1964,7 +1980,7 @@ public abstract class World implements IBlockAccess {
         for (int k1 = i; k1 <= j; ++k1) {
             for (int l1 = k; l1 <= l; ++l1) {
                 for (int i2 = i1; i2 <= j1; ++i2) {
-                    Block block = this.getType(blockposition_mutableblockposition.c(k1, l1, i2)).getBlock();
+                    Block block = this.getType(blockposition_mutableblockposition.setValues(k1, l1, i2)).getBlock(); // Nacho - deobfuscate setValues
 
                     if (block.getMaterial() != Material.AIR) {
                         return true;
@@ -1988,7 +2004,7 @@ public abstract class World implements IBlockAccess {
         for (int k1 = i; k1 <= j; ++k1) {
             for (int l1 = k; l1 <= l; ++l1) {
                 for (int i2 = i1; i2 <= j1; ++i2) {
-                    Block block = this.getType(blockposition_mutableblockposition.c(k1, l1, i2)).getBlock();
+                    Block block = this.getType(blockposition_mutableblockposition.setValues(k1, l1, i2)).getBlock(); // Nacho - deobfuscate setValues
 
                     if (block.getMaterial().isLiquid()) {
                         return true;
@@ -2014,7 +2030,7 @@ public abstract class World implements IBlockAccess {
             for (int k1 = i; k1 < j; ++k1) {
                 for (int l1 = k; l1 < l; ++l1) {
                     for (int i2 = i1; i2 < j1; ++i2) {
-                        Block block = this.getType(blockposition_mutableblockposition.c(k1, l1, i2)).getBlock();
+                        Block block = this.getType(blockposition_mutableblockposition.setValues(k1, l1, i2)).getBlock(); // Nacho - deobfuscate setValues
 
                         if (block == Blocks.FIRE || block == Blocks.FLOWING_LAVA || block == Blocks.LAVA) {
                             return true;
@@ -2045,7 +2061,7 @@ public abstract class World implements IBlockAccess {
             for (int k1 = i; k1 < j; ++k1) {
                 for (int l1 = k; l1 < l; ++l1) {
                     for (int i2 = i1; i2 < j1; ++i2) {
-                        blockposition_mutableblockposition.c(k1, l1, i2);
+                        blockposition_mutableblockposition.setValues(k1, l1, i2); // Nacho - deobfuscate setValues
                         IBlockData iblockdata = this.getType(blockposition_mutableblockposition);
                         Block block = iblockdata.getBlock();
 
@@ -2086,7 +2102,7 @@ public abstract class World implements IBlockAccess {
         for (int k1 = i; k1 < j; ++k1) {
             for (int l1 = k; l1 < l; ++l1) {
                 for (int i2 = i1; i2 < j1; ++i2) {
-                    if (this.getType(blockposition_mutableblockposition.c(k1, l1, i2)).getBlock().getMaterial() == material) {
+                    if (this.getType(blockposition_mutableblockposition.setValues(k1, l1, i2)).getBlock().getMaterial() == material) { // Nacho - deobfuscate setValues
                         return true;
                     }
                 }
@@ -2108,7 +2124,7 @@ public abstract class World implements IBlockAccess {
         for (int k1 = i; k1 < j; ++k1) {
             for (int l1 = k; l1 < l; ++l1) {
                 for (int i2 = i1; i2 < j1; ++i2) {
-                    IBlockData iblockdata = this.getType(blockposition_mutableblockposition.c(k1, l1, i2));
+                    IBlockData iblockdata = this.getType(blockposition_mutableblockposition.setValues(k1, l1, i2)); // Nacho - deobfuscate setValues
                     Block block = iblockdata.getBlock();
 
                     if (block.getMaterial() == material) {
@@ -2147,8 +2163,8 @@ public abstract class World implements IBlockAccess {
         double d0 = 1.0D / ((axisalignedbb.d - axisalignedbb.a) * 2.0D + 1.0D);
         double d1 = 1.0D / ((axisalignedbb.e - axisalignedbb.b) * 2.0D + 1.0D);
         double d2 = 1.0D / ((axisalignedbb.f - axisalignedbb.c) * 2.0D + 1.0D);
-        double d3 = (1.0D - Math.floor(1.0D / d0) * d0) / 2.0D;
-        double d4 = (1.0D - Math.floor(1.0D / d2) * d2) / 2.0D;
+        double d3 = (1.0D - ((NachoConfig.enableFastMath ? FastMath.floor(1.0D / d0) : Math.floor(1.0D / d0)) * d0)) / 2.0D;
+        double d4 = (1.0D - ((NachoConfig.enableFastMath ? FastMath.floor(1.0D / d2) : Math.floor(1.0D / d2)) * d2)) / 2.0D;
 
         if (d0 >= 0.0D && d1 >= 0.0D && d2 >= 0.0D) {
             int i = 0;
@@ -2194,12 +2210,12 @@ public abstract class World implements IBlockAccess {
             return null;
         } else {
             // CraftBukkit start
-            if (capturedTileEntities.containsKey(blockposition)) {
-                return capturedTileEntities.get(blockposition);
+            TileEntity tileentity = null;
+            if (!capturedTileEntities.isEmpty() && (tileentity = capturedTileEntities.get(blockposition)) != null) {
+                return tileentity;
             }
             // CraftBukkit end
 
-            TileEntity tileentity = null;
             int i;
             TileEntity tileentity1;
 
@@ -2713,7 +2729,7 @@ public abstract class World implements IBlockAccess {
                                     int l4 = j2 + enumdirection.getAdjacentY();
                                     int i5 = k2 + enumdirection.getAdjacentZ();
 
-                                    blockposition_mutableblockposition.c(k4, l4, i5);
+                                    blockposition_mutableblockposition.setValues(k4, l4, i5); // Nacho - deobfuscate setValues
                                     int j5 = Math.max(1, this.getType(blockposition_mutableblockposition).getBlock().p());
 
                                     l2 = this.b(enumskyblock, (BlockPosition) blockposition_mutableblockposition);
@@ -3543,8 +3559,7 @@ public abstract class World implements IBlockAccess {
         return this.N;
     }
 
-    public boolean shouldStayLoaded(int i,  int j) { return c(i, j); } // Paper - OBFHELPER
-    public boolean c(int i, int j) {
+    public boolean shouldStayLoaded(int i, int j) { // Nacho - deobfuscate
         BlockPosition blockposition = this.getSpawn();
         int k = i * 16 + 8 - blockposition.getX();
         int l = j * 16 + 8 - blockposition.getZ();

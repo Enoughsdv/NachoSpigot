@@ -274,7 +274,7 @@ public class EntityArrow extends Entity implements IProjectile {
                             EntityLiving entityliving = (EntityLiving) movingobjectposition.entity;
 
                             if (!this.world.isClientSide) {
-                                entityliving.o(entityliving.bv() + 1);
+                                entityliving.setArrowsStuck(entityliving.getArrowsStuck() + 1); // Nacho - deobfuscate getArrowsStuck, setArrowsStuck
                             }
 
                             if (this.knockbackStrength > 0) {
@@ -294,7 +294,7 @@ public class EntityArrow extends Entity implements IProjectile {
                             }
                         }
 
-                        this.makeSound("random.bowhit", 1.0F, 1.2F / (this.random.nextFloat() * 0.2F + 0.9F));
+                        world.makeSound(movingobjectposition.entity, "random.bowhit", 1.0F, 1.2F / (this.random.nextFloat() * 0.2F + 0.9F));
                         if (!(movingobjectposition.entity instanceof EntityEnderman)) {
                             this.die();
                         }
@@ -323,7 +323,7 @@ public class EntityArrow extends Entity implements IProjectile {
                     this.locX -= this.motX / (double) f1 * 0.05000000074505806D;
                     this.locY -= this.motY / (double) f1 * 0.05000000074505806D;
                     this.locZ -= this.motZ / (double) f1 * 0.05000000074505806D;
-                    this.makeSound("random.bowhit", 1.0F, 1.2F / (this.random.nextFloat() * 0.2F + 0.9F));
+                    world.makeSound(d, e, f, "random.bowhit", 1.0F, 1.2F / (this.random.nextFloat() * 0.2F + 0.9F));
                     this.inGround = true;
                     this.shake = 7;
                     this.setCritical(false);
@@ -440,7 +440,7 @@ public class EntityArrow extends Entity implements IProjectile {
                 // event.setCancelled(!entityhuman.canPickUpLoot); TODO
                 this.world.getServer().getPluginManager().callEvent(event);
 
-                if (event.isCancelled()) {
+                if (event.isCancelled() || !((EntityPlayer) entityhuman).getBukkitEntity().canSee(this.getBukkitEntity())) {
                     return;
                 }
             }

@@ -5,7 +5,7 @@ import com.google.common.collect.Lists;
 import java.util.*;
 import java.util.concurrent.Callable;
 
-import dev.cobblesword.nachospigot.Nacho;
+import me.elier.nachospigot.config.NachoConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -147,7 +147,7 @@ public class EntityTracker {
 
     // IonSpigot start
     private EntityTrackerEntry createTracker(Entity entity, int i, int j, boolean flag) {
-        if (entity.isCannoningEntity && Nacho.get().getConfig().useFasterCannonTracker) {
+        if (entity.isCannoningEntity && NachoConfig.useFasterCannonTracker) {
             return new me.suicidalkids.ion.visuals.CannonTrackerEntry(entity, i, j, flag);
         } else {
             return new EntityTrackerEntry(entity, i, j, flag);
@@ -220,8 +220,8 @@ public class EntityTracker {
     public void a(EntityPlayer entityplayer, Chunk chunk) {
         for (EntityTrackerEntry entry : this.getTrackedEntities()) {
             if (entry.getTracker() != entityplayer &&
-                entry.getTracker().getChunkX() == chunk.locX &&
-                entry.getTracker().getChunkZ() == chunk.locZ
+                entry.getTracker().chunkX == chunk.locX && // Nacho - deobfuscate chunkX
+                entry.getTracker().chunkZ == chunk.locZ // Nacho - deobfuscate chunkZ
             )   entry.updatePlayer(entityplayer);
         }
     }

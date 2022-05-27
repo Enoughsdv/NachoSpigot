@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <artifactId>nachospigot</artifactId>
     <packaging>jar</packaging>
-    <version>1.8.8-R0.2-SNAPSHOT</version>
+    <version>1.8.8-R0.1-SNAPSHOT</version>
     <name>NachoSpigot</name>
 
     <properties>
@@ -14,6 +14,17 @@
         <buildtag.suffix/>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
+
+        <!--> Netty
+         These variables can be found at "META-INF/io.netty.versions.properties" of netty-all
+         When updating netty update these variables too
+        -->
+        <netty.version>4.1.75.Final</netty.version>
+        <netty.buildDate>2022-03-10 12\:26\:58 +01</netty.buildDate>
+        <netty.commitDate>2022-03-10 10\:19\:16 +0000</netty.commitDate>
+        <netty.shortCommitHash>5f1802ac65</netty.shortCommitHash> <!-- TODO: automatically get short hash from long -->
+        <netty.longCommitHash>5f1802ac65d63076616c5b3ee7a3d4151c7f3414</netty.longCommitHash>
+        <netty.repoStatus>clean</netty.repoStatus>
     </properties>
 
     <parent>
@@ -35,13 +46,14 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
-            <version>4.1.68.Final</version>
+            <version>${netty.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>org.javassist</groupId>
-            <artifactId>javassist</artifactId>
-            <version>3.28.0-GA</version>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm</artifactId>
+            <version>9.2</version>
+            <scope>test</scope>
         </dependency>
 
         <dependency>
@@ -61,11 +73,9 @@
             <version>8.5.6</version>
         </dependency>
         <dependency>
-            <groupId>org.spigotmc</groupId>
-            <artifactId>minecraft-server</artifactId>
-            <version>1.8.8-SNAPSHOT</version>
-            <type>jar</type>
-            <scope>compile</scope>
+            <groupId>net.jafama</groupId>
+            <artifactId>jafama</artifactId>
+            <version>2.3.2</version>
         </dependency>
         <dependency>
             <groupId>net.sf.jopt-simple</groupId>
@@ -77,7 +87,7 @@
         <dependency>
             <groupId>jline</groupId>
             <artifactId>jline</artifactId>
-            <version>2.14.6</version>
+            <version>2.12.1</version>
             <type>jar</type>
             <scope>compile</scope>
         </dependency>
@@ -96,17 +106,42 @@
             <scope>runtime</scope>
         </dependency>
 
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>2.17.1</version>
+            <scope>compile</scope>
+        </dependency>
+	    <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <version>2.17.1</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j-impl</artifactId>
+            <version>2.17.1</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-iostreams</artifactId>
+            <version>2.17.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.32</version>
+            <scope>compile</scope>
+        </dependency>
+
         <!-- testing -->
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>${junit.version}</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <version>1.10.19</version>
         </dependency>
         <dependency>
             <groupId>org.hamcrest</groupId>
@@ -119,12 +154,42 @@
             <artifactId>fast-uuid</artifactId>
             <version>0.2.0</version>
         </dependency>
+        <dependency>
+            <groupId>com.velocitypowered</groupId>
+            <artifactId>velocity-native</artifactId>
+            <version>1.1.0-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.spigotmc</groupId>
+            <artifactId>minecraft-server</artifactId>
+            <version>1.8.8-SNAPSHOT</version>
+            <type>jar</type>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
+
+    <repositories>
+        <repository>
+            <id>elmakers-repo</id>
+            <url>https://maven.elmakers.com/repository/</url>
+        </repository>
+        <repository>
+            <id>velocity-repo</id>
+            <url>https://repo.velocitypowered.com/snapshots/</url>
+        </repository>
+    </repositories>
 
     <!-- This builds a completely 'ready to start' jar with all dependencies inside -->
     <build>
         <finalName>NachoSpigot-Server</finalName>
         <defaultGoal>install</defaultGoal>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>com.lukegb.mojo</groupId>
@@ -145,6 +210,17 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>2.6</version>
+                <configuration>
+                    <encoding>UTF-8</encoding>
+                    <delimiters>
+                        <delimiter>${*}</delimiter>
+                    </delimiters>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
                 <version>2.5</version>
                 <configuration>
@@ -154,12 +230,13 @@
                         <manifestEntries>
                             <Main-Class>org.bukkit.craftbukkit.Main</Main-Class>
                             <Implementation-Title>CraftBukkit</Implementation-Title>
+                            <!--suppress UnresolvedMavenProperty -->
                             <Implementation-Version>${describe}</Implementation-Version>
                             <Implementation-Vendor>${maven.build.timestamp}</Implementation-Vendor>
                             <Specification-Title>Bukkit</Specification-Title>
-                            <!-- I don't see why this is necessary but I'll leave it alone for now -->
                             <Specification-Version>${api.version}</Specification-Version>
                             <Specification-Vendor>Bukkit Team</Specification-Vendor>
+                            <Multi-Release>true</Multi-Release>
                         </manifestEntries>
                         <manifestSections>
                             <manifestSection>
@@ -195,6 +272,16 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
+                            <!-- Paper start - Update Log4j -->
+                            <filters>
+                                <filter>
+                                    <artifact>org.spigotmc:minecraft-server:**</artifact>
+                                    <excludes>
+                                        <exclude>org/apache/logging/log4j/**</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                            <!-- Paper end - Update Log4j -->
                             <relocations>
                                 <relocation>
                                     <pattern>joptsimple</pattern>
@@ -220,14 +307,6 @@
                                     </excludes>
                                 </relocation>
                                 <relocation>
-                                    <pattern>com.github.benmanes.caffeine</pattern>
-                                    <shadedPattern>org.bukkit.craftbukkit.libs.caffeine</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>javassist</pattern>
-                                    <shadedPattern>org.bukkit.craftbukkit.libs.javassist</shadedPattern>
-                                </relocation>
-                                <relocation>
                                     <pattern>net.minecraft.server</pattern>
                                     <shadedPattern>net.minecraft.server.v1_8_R3</shadedPattern>
                                 </relocation>
@@ -240,7 +319,7 @@
             <plugin>
                 <groupId>net.md-5</groupId>
                 <artifactId>specialsource-maven-plugin</artifactId>
-                <version>1.2.1</version>
+                <version>1.2.4</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -248,8 +327,7 @@
                             <goal>remap</goal>
                         </goals>
                         <configuration>
-                            <srgIn>${project.basedir}/deprecation-mappings.csrg</srgIn>
-                            <accessIn>${project.basedir}/deprecation-mappings.at</accessIn>
+                            <srgIn>${project.basedir}/reobf-mappings.csrg</srgIn>
                         </configuration>
                     </execution>
                 </executions>
@@ -264,6 +342,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.0.0-M5</version>
                 <configuration>
+                    <trimStackTrace>false</trimStackTrace>
                     <workingDirectory>${basedir}/target/test-server</workingDirectory>
                     <excludes>
                         <exclude>org/bukkit/craftbukkit/inventory/ItemStack*Test.java</exclude>

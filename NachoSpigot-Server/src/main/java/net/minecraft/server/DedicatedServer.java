@@ -8,9 +8,11 @@ import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
+import com.destroystokyo.paper.PaperConfig;
 import dev.cobblesword.nachospigot.Nacho;
 import dev.cobblesword.nachospigot.commons.IPUtils;
-import dev.cobblesword.nachospigot.knockback.Knockback;
+import dev.cobblesword.nachospigot.knockback.KnockbackConfig;
+import me.elier.nachospigot.config.NachoConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -41,22 +43,24 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
     public DedicatedServer(joptsimple.OptionSet options) {
         super(options, Proxy.NO_PROXY, DedicatedServer.a);
         // CraftBukkit end
-        Thread thread = new Thread("Server Infinisleeper") {
-            {
-                this.setDaemon(true);
-                this.start();
-            }
+        if (!NachoConfig.disableInfiniSleeperThreadUsage) {
+            Thread thread = new Thread("Server Infinisleeper") {
+                {
+                    this.setDaemon(true);
+                    this.start();
+                }
 
-            public void run() {
-                while (true) {
-                    try {
-                        Thread.sleep(2147483647L);
-                    } catch (InterruptedException interruptedexception) {
-                        ;
+                public void run() {
+                    while (true) {
+                        try {
+                            Thread.sleep(2147483647L);
+                        } catch (InterruptedException interruptedexception) {
+                            ;
+                        }
                     }
                 }
-            }
-        };
+            };
+        }
     }
 
     protected boolean init() throws IOException {
@@ -126,9 +130,9 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
         boolean eulaAgreed = Boolean.getBoolean( "com.mojang.eula.agree" );
         if ( eulaAgreed )
         {
-            System.err.println( "You have used the Spigot command line EULA agreement flag." );
-            System.err.println( "By using this setting you are indicating your agreement to Mojang's EULA (https://account.mojang.com/documents/minecraft_eula)." );
-            System.err.println( "If you do not agree to the above EULA please stop your server and remove this flag immediately." );
+            DedicatedServer.LOGGER.warn( "You have used the Spigot command line EULA agreement flag." );
+            DedicatedServer.LOGGER.warn( "By using this setting you are indicating your agreement to Mojang's EULA (https://account.mojang.com/documents/minecraft_eula)." );
+            DedicatedServer.LOGGER.warn( "If you do not agree to the above EULA please stop your server and remove this flag immediately." );
         }
         // Spigot End
         if (!this.p.a() && !eulaAgreed) { // Spigot
@@ -168,29 +172,29 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
                 inetaddress = InetAddress.getByName(this.getServerIp());
             }
 
-            if (this.R() < 0) {
+            if (this.getPort() < 0) { // Nacho - deobfuscate getPort
                 this.setPort(this.propertyManager.getInt("server-port", 25565));
             }
             // Spigot start
-            Nacho.get(); // NachoSpigot - Load config before PlayerList
-            this.a(new DedicatedPlayerList(this));
+            NachoConfig.init((File) options.valueOf("nacho-settings")); // NachoSpigot - Load config before PlayerList
+            KnockbackConfig.init((File) options.valueOf("knockback-settings"));
+            this.setPlayerList(new DedicatedPlayerList(this)); // Nacho - deobfuscate setPlayerList
             org.spigotmc.SpigotConfig.init((File) options.valueOf("spigot-settings"));
             org.spigotmc.SpigotConfig.registerCommands();
             // Spigot end
             // PaperSpigot start
-            org.github.paperspigot.PaperSpigotConfig.init((File) options.valueOf("paper-settings"));
-            org.github.paperspigot.PaperSpigotConfig.registerCommands();
+            PaperConfig.init((File) options.valueOf("paper-settings"));
+            PaperConfig.registerCommands();
             // PaperSpigot end
             Nacho.get().registerCommands(); // NachoSpigot :: Commands
-            Knockback.get().registerCommands(); // NS Knockback :: Commands
 
             DedicatedServer.LOGGER.info("Generating keypair");
             this.a(MinecraftEncryption.b());
-            DedicatedServer.LOGGER.info("Starting Minecraft server on " + (this.getServerIp().length() == 0 ? "*" : this.getServerIp()) + ":" + this.R());
+            DedicatedServer.LOGGER.info("Starting Minecraft server on " + (this.getServerIp().length() == 0 ? "*" : this.getServerIp()) + ":" + this.getPort()); // Nacho - deobfuscate getPort
 
         if (!org.spigotmc.SpigotConfig.lateBind) {
             try {
-                this.aq().a(inetaddress, this.R());
+                this.aq().a(inetaddress, this.getPort()); // Nacho - deobfuscate getPort
             } catch (IOException ioexception) {
                 DedicatedServer.LOGGER.warn("**** FAILED TO BIND TO PORT!");
                 DedicatedServer.LOGGER.warn("The exception was: {}", ioexception.toString());
@@ -212,15 +216,13 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
                 if (org.spigotmc.SpigotConfig.bungee) {
                     DedicatedServer.LOGGER.warn("Whilst this makes it possible to use BungeeCord, unless access to your server is properly restricted, it also opens up the ability for hackers to connect with any username they choose.");
                     DedicatedServer.LOGGER.warn("Please see http://www.spigotmc.org/wiki/firewall-guide/ for further information.");
-                    if (!Nacho.get().getConfig().stopNotifyBungee) {
+                    if (!NachoConfig.stopNotifyBungee) {
                         DedicatedServer.LOGGER.warn("---------------------------- NachoSpigot Checker ----------------------------");
-                        DedicatedServer.LOGGER.warn("If you don't want to see this message anymore, set \"stopNotifyBungee\" to \"true\" in \"nacho.json\"!");
+                        DedicatedServer.LOGGER.warn("If you don't want to see this message anymore, set \"settings.stop-notify-bungee\" to \"true\" in \"nacho.yml\"!");
                         DedicatedServer.LOGGER.warn("Checking firewall..");
                         try {
                             String external = IPUtils.getExternalAddress();
-                            int port = getServerPort();
-                            DedicatedServer.LOGGER.warn("External IP: " + external);
-                            DedicatedServer.LOGGER.warn("Port: " + port);
+                            int port = this.port;
                             if (IPUtils.isAccessible(external, port)) {
                                 DedicatedServer.LOGGER.error("THIS SERVER IS ACCESSIBLE FROM THE OUTSIDE");
                                 DedicatedServer.LOGGER.error("WITHOUT HAVING A PROPER PLUGIN LIKE BUNGEEGUARD INSTALLED");
@@ -320,7 +322,7 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
 
                 if (org.spigotmc.SpigotConfig.lateBind) {
                     try {
-                        this.aq().a(inetaddress, this.R());
+                        this.aq().a(inetaddress, this.getPort()); // Nacho - deobfuscate getPort
                     } catch (IOException ioexception) {
                         DedicatedServer.LOGGER.warn("**** FAILED TO BIND TO PORT!");
                         DedicatedServer.LOGGER.warn("The exception was: {}", ioexception.toString());
@@ -328,16 +330,6 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
                         return false;
                     }
                 }
-
-                // [Nacho-0042] Remove Spigot Watchdog
-                /* if (this.aS() > 0L) {  // Spigot - disable
-                    Thread thread1 = new Thread(new ThreadWatchdog(this));
-                    thread1.setName("Server Watchdog");
-                    thread1.setDaemon(true);
-                    thread1.start();
-                } */
-
-                Nacho.get().applyPatches(); // Nacho
 
                 return true;
             }
@@ -416,8 +408,8 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
     }
 
     public void a(MojangStatisticsGenerator mojangstatisticsgenerator) {
-        mojangstatisticsgenerator.a("whitelist_enabled", this.aP().getHasWhitelist());
-        mojangstatisticsgenerator.a("whitelist_count", this.aP().getWhitelisted().length);
+        mojangstatisticsgenerator.a("whitelist_enabled", this.getDedicatedPlayerList().getHasWhitelist()); // Nacho - deobfuscate getDedicatedPlayerList
+        mojangstatisticsgenerator.a("whitelist_count", this.getDedicatedPlayerList().getWhitelisted().length); // Nacho - deobfuscate getDedicatedPlayerList
         super.a(mojangstatisticsgenerator);
     }
 
@@ -431,10 +423,10 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
 
     public void aO() {
         SpigotTimings.serverCommandTimer.startTiming(); // Spigot
-        // [Paper-0350] start - use a Queue for Queueing Commands
+        // Paper start - use a Queue for Queueing Commands
         ServerCommand servercommand;
         while ((servercommand = this.l.poll()) != null) {
-            // [Paper-0350] end - use a Queue for Queueing Commands
+            // Paper end
 
             // CraftBukkit start - ServerCommand for preprocessing
             ServerCommandEvent event = new ServerCommandEvent(console, servercommand.command);
@@ -455,8 +447,7 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
     }
 
     public boolean ai() {
-        // [Nacho-0039] Add a check to see if we are using Linux or not, if not ignore this.
-        return this.getTransport() == ServerConnection.EventGroupType.EPOLL && org.apache.commons.lang.SystemUtils.IS_OS_LINUX;
+        return org.apache.commons.lang.SystemUtils.IS_OS_LINUX && this.getTransport() == ServerConnection.EventGroupType.EPOLL;  // Nacho - Add a check to see if we are using Linux or not, if not ignore this.
     }
 
     public ServerConnection.EventGroupType getTransport() {
@@ -467,7 +458,7 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
         }
     }
 
-    public DedicatedPlayerList aP() {
+    public DedicatedPlayerList getDedicatedPlayerList() { // Nacho - deobfuscate getDedicatedPlayerList
         return (DedicatedPlayerList) super.getPlayerList();
     }
 
@@ -521,9 +512,9 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
     public boolean a(World world, BlockPosition blockposition, EntityHuman entityhuman) {
         if (world.worldProvider.getDimension() != 0) {
             return false;
-        } else if (this.aP().getOPs().isEmpty()) {
+        } else if (this.getDedicatedPlayerList().getOPs().isEmpty()) { // Nacho - deobfuscate getDedicatedPlayerList
             return false;
-        } else if (this.aP().isOp(entityhuman.getProfile())) {
+        } else if (this.getDedicatedPlayerList().isOp(entityhuman.getProfile())) { // Nacho - deobfuscate getDedicatedPlayerList
             return false;
         } else if (this.getSpawnProtection() <= 0) {
             return false;
@@ -707,6 +698,6 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
     }
 
     public PlayerList getPlayerList() {
-        return this.aP();
+        return this.getDedicatedPlayerList(); // Nacho - deobfuscate getDedicatedPlayerList
     }
 }

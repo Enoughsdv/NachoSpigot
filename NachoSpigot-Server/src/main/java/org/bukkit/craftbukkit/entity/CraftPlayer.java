@@ -1,9 +1,9 @@
 package org.bukkit.craftbukkit.entity;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.mojang.authlib.GameProfile;
+import dev.cobblesword.nachospigot.Nacho;
 import dev.cobblesword.nachospigot.commons.Constants;
 import io.netty.buffer.Unpooled;
 
@@ -15,7 +15,10 @@ import java.net.SocketAddress;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import me.elier.nachospigot.config.NachoConfig;
 import net.md_5.bungee.api.chat.BaseComponent;
+import dev.cobblesword.nachospigot.commons.Dictionary;
 
 import net.minecraft.server.*;
 import net.minecraft.server.PacketPlayOutTitle.EnumTitleAction;
@@ -24,7 +27,6 @@ import org.apache.commons.lang.Validate;
 import org.apache.commons.lang.NotImplementedException;
 import org.bukkit.*;
 import org.bukkit.Achievement;
-import org.bukkit.BanList;
 import org.bukkit.Statistic;
 import org.bukkit.Material;
 import org.bukkit.Statistic.Type;
@@ -60,7 +62,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.messaging.StandardMessenger;
 import org.bukkit.scoreboard.Scoreboard;
 // PaperSpigot start
-import org.github.paperspigot.Title;
+import com.destroystokyo.paper.Title;
 // PaperSpigot end
 
 @DelegateDeserialization(CraftOfflinePlayer.class)
@@ -539,6 +541,8 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
         if (event.isCancelled()) {
             return false;
         }
+        
+        Nacho.get().getLagCompensator().registerMovement(this, event.getTo()); // Nacho - register teleport
 
         // If this player is riding another entity, we must dismount before teleporting.
         entity.mount(null);
@@ -962,6 +966,11 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
 
     @Override
     public void hidePlayer(Player player) {
+        hidePlayer(player, true);
+    }
+
+    @Override
+    public void hidePlayer(Player player, boolean onTab) {
         Validate.notNull(player, "hidden player cannot be null");
         if (getHandle().playerConnection == null) return;
         if (equals(player)) return;
@@ -977,7 +986,9 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
         }
 
         //remove the hidden player from this player user list
-        getHandle().playerConnection.sendPacket(new PacketPlayOutPlayerInfo(PacketPlayOutPlayerInfo.EnumPlayerInfoAction.REMOVE_PLAYER, other));
+        if (onTab) {
+            getHandle().playerConnection.sendPacket(new PacketPlayOutPlayerInfo(PacketPlayOutPlayerInfo.EnumPlayerInfoAction.REMOVE_PLAYER, other));
+        }
     }
 
     @Override
@@ -1006,6 +1017,37 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
     @Override
     public boolean canSee(Player player) {
         return !hiddenPlayers.contains(player.getUniqueId());
+    }
+
+    @Override
+    public boolean canSee(org.bukkit.entity.Entity entity) {
+        Entity nmsEntity = ((CraftEntity) entity).getHandle();
+        if (nmsEntity instanceof EntityPlayer) {
+            return this.canSee((Player) entity);
+        }
+
+        // Projectiles from hidden players
+        if(NachoConfig.hideProjectilesFromHiddenPlayers) {
+            if (nmsEntity instanceof EntityProjectile) {
+                EntityProjectile entityProjectile = (EntityProjectile) nmsEntity;
+
+                if (entityProjectile.getShooter() instanceof EntityPlayer) {
+                    return this.canSee(((EntityPlayer) entityProjectile.getShooter()).getBukkitEntity());
+                }
+            }
+
+            if (nmsEntity instanceof EntityArrow) {
+                EntityArrow entityProjectile = (EntityArrow) nmsEntity;
+
+                if (entityProjectile.shooter instanceof EntityPlayer) {
+                    return this.canSee(((EntityPlayer) entityProjectile.shooter).getBukkitEntity());
+                }
+            }
+
+
+        }
+
+        return true;
     }
 
     @Override
@@ -1234,7 +1276,7 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
 
     @Override
     public void setFlying(boolean value) {
-        boolean needsUpdate = getHandle().abilities.canFly != value; // PaperSpigot - Only refresh abilities if needed
+        boolean needsUpdate = getHandle().abilities.isFlying != value; // PaperSpigot - Only refresh abilities if needed
         if (!getAllowFlight() && value) {
             throw new IllegalArgumentException("Cannot make player fly if getAllowFlight() is false");
         }
@@ -1443,6 +1485,11 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
         getHandle().playerConnection.sendPacket(packetReset);
     }
 
+    @Override
+    public String getLocale() {
+        return getHandle().locale;
+    }
+
     // Spigot start
     private final Player.Spigot spigot = new Player.Spigot()
     {
@@ -1490,22 +1537,16 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
             {
                 net.minecraft.server.EnumParticle particle = null;
                 int[] extra = null;
-                for ( net.minecraft.server.EnumParticle p : net.minecraft.server.EnumParticle.values() )
-                {
-                    if ( effect.getName().startsWith( p.b().replace("_", "") ) )
+                if ((particle = Dictionary.EFFECT_TO_PARTICLE.get(effect)) != null) {
+                    if (effect.getData() != null)
                     {
-                        particle = p;
-                        if ( effect.getData() != null )
+                        if (effect.getData().equals(Material.class))
                         {
-                            if ( effect.getData().equals( org.bukkit.Material.class ) )
-                            {
-                                extra = new int[]{ id };
-                            } else
-                            {
-                                extra = new int[]{ (data << 12) | (id & 0xFFF) };
-                            }
+                            extra = new int[]{id};
+                        } else
+                        {
+                            extra = new int[]{(data << 12) | (id & 0xFFF)};
                         }
-                        break;
                     }
                 }
                 if ( extra == null )
@@ -1632,6 +1673,7 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
         return spigot;
     }
 
+    // Nacho start
     private final NachoPlayer nacho = new NachoPlayer() {
         @Override
         public void sendActionBar(String message) {
@@ -1662,6 +1704,7 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
     public NachoPlayer nacho() {
         return nacho;
     }
+    // Nacho end
 
     private final Unsafe unsafe = new Unsafe() {
         @Override

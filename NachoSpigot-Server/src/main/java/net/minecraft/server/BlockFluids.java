@@ -2,8 +2,6 @@ package net.minecraft.server;
 
 import dev.cobblesword.nachospigot.commons.Constants;
 
-import dev.cobblesword.nachospigot.Nacho;
-
 import java.util.Iterator;
 import java.util.Random;
 
@@ -149,7 +147,7 @@ public abstract class BlockFluids extends Block {
                 }
             }
 
-            if ((flag) && (Nacho.get().getConfig().enableLavaToCobblestone)) {
+            if ((flag) && (world.nachoSpigotConfig.enableLavaToCobblestone)) {
                 Integer integer = (Integer) iblockdata.get(BlockFluids.LEVEL);
 
                 if (integer.intValue() == 0) {

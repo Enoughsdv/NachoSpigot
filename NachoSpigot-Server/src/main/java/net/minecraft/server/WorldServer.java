@@ -3,16 +3,8 @@ package net.minecraft.server;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListenableFuture;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.UUID;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -28,7 +20,6 @@ import org.bukkit.craftbukkit.util.HashTreeSet;
 import org.bukkit.event.block.BlockFormEvent;
 import org.bukkit.event.weather.LightningStrikeEvent;
 // CraftBukkit end
-import dev.cobblesword.nachospigot.Nacho;
 
 public class WorldServer extends World implements IAsyncTaskHandler {
 
@@ -230,7 +221,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
             // CraftBukkit end
         }
         // CraftBukkit end
-        if (Nacho.get().getConfig().doChunkUnload) {
+        if (this.nachoSpigotConfig.doChunkUnload) {
             timings.doChunkUnload.startTiming(); // Spigot
             this.methodProfiler.c("chunkSource");
 
@@ -425,6 +416,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
 
                 this.a(k, l, chunk);
                 this.methodProfiler.c("tickChunk");
+                if (!chunk.areNeighborsLoaded(1)) continue; // Spigot
                 chunk.b(false);
                 this.methodProfiler.c("thunder");
                 int i1;
@@ -477,7 +469,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
                     }
                 }
 
-                if (Nacho.get().getConfig().doBlocksOperations) {
+                if (this.nachoSpigotConfig.doBlocksOperations) {
                     this.methodProfiler.c("tickBlocks");
                     timings.chunkTicksBlocks.startTiming(); // Spigot
                     int randomTickSpeed = this.getGameRules().c("randomTickSpeed");
@@ -651,7 +643,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
                 timings.scheduledBlocksCleanup.stopTiming(); // Spigot
 
                 // PaperSpigot start - Allow redstone ticks to bypass the tickNextTickListCap
-                if (paperSpigotConfig.tickNextTickListCapIgnoresRedstone) {
+                /*if (paperSpigotConfig.tickNextTickListCapIgnoresRedstone) {
                     Iterator<NextTickListEntry> iterator = this.M.iterator();
                     while (iterator.hasNext()) {
                         NextTickListEntry next = iterator.next();
@@ -664,7 +656,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
                             this.V.add(next);
                         }
                     }
-                }
+                }*/
                 // PaperSpigot end
 
                 this.methodProfiler.b();
@@ -963,13 +955,13 @@ public class WorldServer extends World implements IAsyncTaskHandler {
 
             this.chunkProvider.saveChunks(flag, iprogressupdate);
             // CraftBukkit - ArrayList -> Collection
-            Collection<Chunk> arraylist = this.chunkProviderServer.a();
-
+            /*Collection<Chunk> arraylist = this.chunkProviderServer.a(); // Paper start
             for (Chunk value : arraylist) {
                 if (value != null && !this.manager.a(value.locX, value.locZ)) {
                     this.chunkProviderServer.queueUnload(value.locX, value.locZ);
                 }
             }
+            */ // Paper end
 
         }
     }

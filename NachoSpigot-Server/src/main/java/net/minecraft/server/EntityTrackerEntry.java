@@ -347,11 +347,8 @@ public class EntityTrackerEntry {
             if (this.c(entityplayer)) {
                 if (!isPlayerEntityTracked && (this.e(entityplayer) || this.tracker.attachedToPlayer)) {
                     // CraftBukkit start - respect vanish API
-                    if (this.tracker instanceof EntityPlayer) {
-                        Player player = ((EntityPlayer) this.tracker).getBukkitEntity();
-                        if (!entityplayer.getBukkitEntity().canSee(player)) {
-                            return;
-                        }
+                    if (!entityplayer.getBukkitEntity().canSee(this.tracker.getBukkitEntity())) {
+                        return;
                     }
 
                     entityplayer.removeQueue.remove(Integer.valueOf(this.tracker.getId()));
@@ -456,12 +453,16 @@ public class EntityTrackerEntry {
     }
 
     protected boolean e(EntityPlayer entityplayer) { // IonSpigot - private -> protected
-        return entityplayer.u().getPlayerChunkMap().a(entityplayer, this.tracker.ae, this.tracker.ag);
+        return entityplayer.u().getPlayerChunkMap().a(entityplayer, this.tracker.chunkX, this.tracker.chunkZ); // Nacho - deobfuscate chunkX, chunkZ
     }
 
     public void scanPlayers(List<EntityHuman> list) {
-        for (int i = 0; i < list.size(); ++i) {
-            this.updatePlayer((EntityPlayer) list.get(i));
+        for (EntityHuman entityHuman : list) {
+            // Don't update if player cannot see entity
+            if (entityHuman instanceof EntityPlayer && entityHuman.hasBukkitEntity() && !((EntityPlayer) entityHuman).getBukkitEntity().canSee((this.tracker).getBukkitEntity())) {
+                continue;
+            }
+            this.updatePlayer((EntityPlayer) entityHuman);
         }
 
     }

@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import dev.cobblesword.nachospigot.knockback.KnockbackProfile;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -12,6 +13,8 @@ import org.bukkit.inventory.EntityEquipment;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.projectiles.ProjectileSource;
+import org.bukkit.event.entity.EntityRegainHealthEvent;
+import org.bukkit.event.entity.EntityRegainHealthEvent.RegainReason;
 
 /**
  * Represents a living entity, such as a monster or player
@@ -253,6 +256,17 @@ public interface LivingEntity extends Entity, Damageable, ProjectileSource {
     public void setNoDamageTicks(int ticks);
 
     /**
+     * Gets the knockback profile of this player.
+     */
+    KnockbackProfile getKnockbackProfile();
+
+    /**
+     * Sets the knockback profile of this player. The player's knockback
+     * profile overrides the global knockback profile.
+     */
+    void setKnockbackProfile(KnockbackProfile profile);
+
+    /**
      * Gets the player identified as the killer of the living entity.
      * <p>
      * May be null.
@@ -417,5 +431,18 @@ public interface LivingEntity extends Entity, Damageable, ProjectileSource {
     public boolean shouldPullWhileLeashed();
 
     public void setPullWhileLeashed(boolean pullWhileLeashed);
+
+    /**
+     * Heals the entity for the specified amount, with {@link RegainReason#CUSTOM}. If {@code amount} is less than 0, the code will not run. If, after event processing, the amount to heal will make the entity exceed their max health, then their health will be rounded to their max health. Will call {@link EntityRegainHealthEvent}.
+     * @param amount Amount to heal the entity.
+     */
+    public void heal(float amount);
+
+    /**
+     * Heals the entity for the specified amount, with the specified reason. If {@code amount} is less than 0, the code will not run. If, after event processing, the amount to heal will make the entity exceed their max health, then their health will be rounded to their max health. Will call {@link EntityRegainHealthEvent}.
+     * @param amount Amount to heal the entity.
+     * @param reason Regain reason, included in event call.
+     */
+    public void heal(float amount, EntityRegainHealthEvent.RegainReason reason);
     // Nacho end
 }

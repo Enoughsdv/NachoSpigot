@@ -1,10 +1,8 @@
 package net.minecraft.server;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 
 // TacoSpigot start
-import com.google.common.base.Preconditions;
-
 import net.techcable.tacospigot.BlockStateRegistry;
 // TacoSpigot end
 
@@ -42,7 +40,7 @@ public abstract class BlockState<T extends Comparable<T>> implements IBlockState
     }
 
     public String toString() {
-        return Objects.toStringHelper(this).add("name", this.b).add("clazz", this.a).add("values", this.c()).toString();
+        return MoreObjects.toStringHelper(this).add("name", this.b).add("clazz", this.a).add("values", this.c()).toString();
     }
 
     public boolean equals(Object object) {

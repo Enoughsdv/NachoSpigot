@@ -1,19 +1,62 @@
-# NachoSpigot [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/CobbleSword/NachoSpigot/NachoSpigot%20Build)](https://nacho.sculas.xyz/)
+### This project is no longer maintained!
+There are many unfixed issues with nobody working on them due to a lack of maintainers.
+It is recommended that you look for another 1.8 fork or use newer versions with backwards-compatibility plugins.
 
-#### NachoSpigot is a fork of TacoSpigot 1.8.8
-NachoSpigot offers a number of enhancements to performance as well as bug fixes such as a built-in anti-crash system and being able to perform well with a large number of players.
+Currently, [WindSpigot](https://github.com/Wind-Development/WindSpigot) and [PandaSpigot](https://github.com/hpfxd/PandaSpigot) look the most promising. Please check them out if you are unable to use something like Purpur (1.18+).
 
-## Current State
-Java 15 is now natively supported, and [ProtocolLib](https://github.com/dmulloy2/ProtocolLib) and [Citizens2](https://github.com/CitizensDev/Citizens2) are patched at runtime to work with Nacho's modifications.
+### Developers Notes / Farewells
 
-Nacho can now be used in production environments with some degree of stability.
+#### [HeathLoganCampbell / Sprock](https://github.com/HeathLoganCampbell)
+```
+~ Founder of NachoSpigot
+Thanks for all the love and support you have all put into NachoSpigot
+Discord: Sprock#0001
+Twitter: https://twitter.com/SprockPls
+Youtube: https://www.youtube.com/c/SprockPls
+```
 
-If you find any bugs, please create an issue or contact us in the [Discord server](https://discord.gg/ewcYeERKJw)!
+#### [Lucas / Sculas](https://github.com/Lucaskyy)
+```
+~ Maintainer
+It was fun while it lasted. Thank you for accompanying our journey!
+```
 
-**NachoSpigot supports Java 8 to Java 17!**
+#### [Elierrr / Elier](https://github.com/Elierrr)
+```
+~ Contributor
+Even as a late contributor, I was treated as someone who was always there, it was fun during these times and I have to thank everyone who helped, especially Sprock, Sculas, and Galaxis.
+```
+
+#### [Galaxis / crafter2345](https://github.com/crafter23456)
+```
+~ Contributor
+It was a beautyful time. I will miss NachoSpigot, but some parts live further. Love you Lew, Sprock, Lucas & Elier.
+```
+
+#### [wuangg / street](https://github.com/wuangg)
+```
+~ Contributor
+two years and it has been quite a ride, thank you to all maintainers and contributors and wish you all the best in your future projects.
+```
+
+#### [Tofpu](https://github.com/Tofpu)
+```
+~ Contributor & Appreciator 
+Even though I haven't contributed much into the project, I was treated very nicely when I did at the time. 
+I thank everyone who made this project as it is today, it was fun while it lasted!
+```
+
+## NachoSpigot
+NachoSpigot offers a number of enhancements to performance as well as bug fixes and being able to perform well with a large number of players.
+
+While NachoSpigot hasn't been benchmarked properly yet, a server running NachoSpigot was successfully able to run a Minecraft event with 300 players and 20 TPS continuously.
+
+If you find any bugs, please [create an issue](../../issues/new) or contact us in the [Discord server](https://discord.gg/ewcYeERKJw)!
 
 ## Download
-[Stable](https://nacho.sculas.xyz/)
+We do not provide stable release builds, since every commit should be stable to run.
+
+You can download the CI build for the latest commit [here](https://nightly.link/CobbleSword/NachoSpigot/workflows/build-nachospigot/master/NachoSpigot-server.zip).
 
 ## API Download
 [JitPack](https://jitpack.io/#CobbleSword/NachoSpigot/master-SNAPSHOT)
@@ -35,15 +78,18 @@ See: [Contributors Page](https://github.com/CobbleSword/NachoSpigot/graphs/contr
 [Spigot-0138] Branchless NibbleArray by md5
 [Spigot-2380] Hitting in the air will always load the chunk at 0,0 by md_5
 
+[Paper-0021] Implement Paper VersionChecker
 [Paper-0033] Optimize explosions
 [Paper-0044] Use UserCache for player heads
 [Paper-0072] Fix Furnace cook time bug when lagging by Aikar
 [Paper-0076] Optimized Light Level Comparisons by Aikar
 [Paper-0083] Waving banner workaround by Gabscap
-[Paper-0085] Use a Shared Random for Entities by Aikar
-[Paper-0097] Don't save empty scoreboard teams to scoreboard.dat by Aikar
+[Paper-0068] Use a Shared Random for Entities by Aikar
+[Paper-0085] Add handshake event to allow plugins to handle client handshaking logic themselves
+[Paper-0093] Don't save empty scoreboard teams to scoreboard.dat by Aikar
+[Paper-0097] Faster redstone torch rapid clock removal by Martin Panzer
 [Paper-0100] Avoid blocking on Network Manager creation by Aikar
-[Paper-0102] Faster redstone torch rapid clock removal by Martin Panzer.
+[Paper-0103] Add setting for proxy online mode status
 [Paper-0112] Reduce IO ops opening a new region file by Antony Riley
 [Paper-0122] Don't let fishinghooks use portals by Zach Brown
 [Paper-0125] Optimize World.isLoaded(BlockPosition)Z by Aikar
@@ -57,9 +103,10 @@ See: [Contributors Page](https://github.com/CobbleSword/NachoSpigot/graphs/contr
 [Paper-0249] Improve BlockPosition inlining by Techcable
 [Paper-0254] Don't blindly send unlit chunks when lighting updates are allowed by Shane Freeder
 [Paper-0266] [MC-99321] Dont check for blocked double chest for hoppers
+[Paper-0301] Optimize Region File Cache
 [Paper-0302] Don't load chunks for villager door checks by Aikar
 [Paper-0313] Optimize World Time Updates by Aikar
-[Paper-0321] Cleanup allocated favicon ByteBuf by Shane Freeder
+[Paper-0321] Server Tick Events
 [Paper-0342] Always process chunk removal in removeEntity by Aikar 2018
 [Paper-0344] [MC-111480] Start Entity ID's at 1
 [Paper-0346] [MC-135506] Experience should save as Integers
@@ -70,6 +117,8 @@ See: [Contributors Page](https://github.com/CobbleSword/NachoSpigot/graphs/contr
 [Paper-0389] performance improvement for Chunk.getEntities by wea_ondara
 [Paper-0539] Optimize NetworkManager Exception Handling by Andrew Steinborn
 [Paper-0451] Reduce memory footprint of NBTTagCompound by spottedleaf
+[Paper-0797] Use Velocity compression and cipher natives
+[Paper-????] Cleanup allocated favicon ByteBuf by Shane Freeder
 
 <--> by Heath
 [Nacho-0001] Remove stream usage when counting entities
@@ -104,26 +153,26 @@ See: [Contributors Page](https://github.com/CobbleSword/NachoSpigot/graphs/contr
 [Nacho-0030] add a ChunkPreLoadEvent
 [Nacho-0031] remove unused vars
 [Nacho-0033] Faster Operator search method
-[Nacho-0049] Don't allocate empty int arrays for particles
-[Nacho-0050] Option to disable Enchantment table ticking
+[Nacho-0048] Don't allocate empty int arrays for particles
+[Nacho-0049] Option to disable Enchantment table ticking
+[Nacho-0052] Add config to disable disconnect.spam
 
 <--> by Sculas
 [Nacho-0034] Remove Java 8 message from TacoSpigot which made it so you couldn't run Java 8 or higher
-[Nacho-0035] Made it so you can switch the brand name in nacho.json
+[Nacho-0035] Made it so you can switch the brand name in nacho.yml
 [Nacho-0036] Add toggles for commands "reload", "version" and "plugins"
 [Nacho-0037] Add toggle for "Faster Operator"
 [Nacho-0039] Fixed a bug in Netty's epoll when using Windows
 [Nacho-0040] Change deprecated Netty parameter in ResourceLeakDetector
 [Nacho-0041] Fix block placement
 [Nacho-0042] Remove Spigot Watchdog
-[Nacho-0043] Fix ProtocolLib
-[Nacho-0044] Fix Citizens
-[Nacho-0045] Async obfuscation
-[Nacho-0046] Add Player#jump and Player#sendActionBar
-[Nacho-0047] Little anti-malware
-[Nacho-0048] Little anti-crash
-[Nacho-0051] Custom knockback
-[Nacho-0052] Rework ServerConnection and MinecraftPipeline (credits to Minestom)
+[Nacho-0043] Fix Citizens
+[Nacho-0044] Async obfuscation
+[Nacho-0045] Add Player#jump and Player#sendActionBar
+[Nacho-0046] Little anti-malware
+[Nacho-0047] Little anti-crash
+[Nacho-0050] Custom knockback
+[Nacho-0051] Rework ServerConnection and MinecraftPipeline (credits to Minestom)
 
 [Yatopia-0030] Don't save Fireworks and Arrows by tr7zw (Arrows and firework Entities, eg stuck arrows in the ground)
 [Yatopia-0047] Smarter statistics ticking
@@ -136,6 +185,7 @@ See: [Contributors Page](https://github.com/CobbleSword/NachoSpigot/graphs/contr
 [IonSpigot-0014] Faster Chunk Entity List
 [IonSpigot-0020] Faster EntityTracker Collections
 [IonSpigot-0035] Optimise Entity Collisions
+[IonSpigot-0037] Fast Cannon Entity Tracker
 
 [InsanePaper-269] Cache Chunk Coordinations
 [InsanePaper-390] Heavily optimize Tuinity controlled flush patch
@@ -150,9 +200,12 @@ See: [Contributors Page](https://github.com/CobbleSword/NachoSpigot/graphs/contr
 [SportPaper-0027] Fix head rotation packet spam
 [SportPaper-0043] Get blocks in Chunk API
 [SportPaper-0162] Fix PlayerInteractEvent not cancelling properly
+[SportPaper-0171] Fix NPE in CraftChunk#getBlocks
 [SportPaper-0197] Optimize head rotation patch
 [SportPaper-0201] Cache block break animation packet
+[SportPaper-0204] Optimize toLegacyData removing unneeded sanity checks
 [SportPaper-0203] Fix Teleport Invisibility
+[SportPaper-0206] Remove the world before nullifying chunkLoader & chunkProvider
 
 [PaperBin-????] WorldServer#everyoneDeeplySleeping optimization
 
@@ -164,20 +217,30 @@ See: [Contributors Page](https://github.com/CobbleSword/NachoSpigot/graphs/contr
 [KigPaper-0167] Add setType without lighting update API
 [KigPaper-0172] NBT no-op for block place packet
 [KigPaper-0191] Don't calculate initial light if not requested
+[KigPaper-0220] Entity: Use EnumMap in CraftPlayer#playEffect()
 
-[FlamePaper-0102] Fixed chunk memory leak
-[FlamePaper-0103] Limit CraftChatMessage iterations
-[FlamePaper-0104] Return last slot by default
-[FlamePaper-0105] Fix memory leaks by Minetick
-[FlamePaper-0106] Fix sending irrelevant block updates to the client
-[FlamePaper-0110] Fix NullPointerException exploits for invalid logins
-[FlamePaper-0113] Remove unused code from beacons
-[FlamePaper-0115] Patch Book Exploits
-[FlamePaper-0117] Pearl through blocks
+[FlamePaper-0003] Fixed chunk memory leak
+[FlamePaper-0004] Return last slot by default
+[FlamePaper-0005] Fix memory leaks by Minetick
+[FlamePaper-0006] Fix sending irrelevant block updates to the client
+[FlamePaper-0008] Do not load chunks for light checks
+[FlamePaper-0010] Fix NullPointerException exploits for invalid logins
+[FlamePaper-0013] Check channel before reading
+[FlamePaper-0014] Remove unused code from beacons
+[FlamePaper-0015] Patch Book Exploits
+[FlamePaper-0016] Limit CraftChatMessage iterations
+[FlamePaper-0017] Pearl through blocks
+[FlamePaper-0029] Fast Versioning
+[FlamePaper-0032] Dont load chunks for chests
+[FlamePaper-0033] Dont check occluding hoppers
+[FlamePaper-0034] Hopper item lookup optimization
 
 [MineTick-0006] Fix Occasional Client Side Unloading of Chunk 0 0
 [MineTick-0011] Optimize Idle Furnaces
 [MineTick-0017] Fix Insane Nether Portal Lag
 
 [Migot-0009] Prevent Creature Spawning in Unloaded Chunks
+[Migot-0036] Check for lava only once per tick
+
+[Sugarcane-0022] Add YAML comments
 ```

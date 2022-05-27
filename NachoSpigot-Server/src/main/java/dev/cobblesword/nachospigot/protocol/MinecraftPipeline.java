@@ -4,8 +4,8 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.*;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.timeout.ReadTimeoutHandler;
+import me.elier.nachospigot.config.NachoConfig;
 import net.minecraft.server.*;
-import dev.cobblesword.nachospigot.Nacho;
 
 public class MinecraftPipeline extends ChannelInitializer<SocketChannel>
 {
@@ -18,7 +18,9 @@ public class MinecraftPipeline extends ChannelInitializer<SocketChannel>
     protected void initChannel(SocketChannel channel) {
         try {
             ChannelConfig config = channel.config();
-            config.setOption(ChannelOption.TCP_NODELAY, Nacho.get().getConfig().enableTCPNODELAY);
+            config.setOption(ChannelOption.TCP_NODELAY, NachoConfig.enableTCPNODELAY);
+            config.setOption(ChannelOption.TCP_FASTOPEN, NachoConfig.modeTcpFastOpen);
+            config.setOption(ChannelOption.TCP_FASTOPEN_CONNECT, NachoConfig.enableTcpFastOpen);
             config.setOption(ChannelOption.IP_TOS, 0x18); // [Nacho-0027] :: Optimize networking
             config.setAllocator(ByteBufAllocator.DEFAULT);
         } catch (Exception ignored) {}
@@ -34,5 +36,6 @@ public class MinecraftPipeline extends ChannelInitializer<SocketChannel>
         this.serverConnection.pending.add(networkmanager); // Paper
         channel.pipeline().addLast("packet_handler", networkmanager);
         networkmanager.a(new HandshakeListener(this.serverConnection.server, networkmanager));
+        io.papermc.paper.network.ChannelInitializeListenerHolder.callListeners(channel); // Paper
     }
 }

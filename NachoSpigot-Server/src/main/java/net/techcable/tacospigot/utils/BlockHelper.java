@@ -1,16 +1,7 @@
 package net.techcable.tacospigot.utils;
 
-import java.util.AbstractSet;
-import java.util.Iterator;
-import java.util.Spliterator;
-import java.util.Spliterators;
 import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
-
-import com.google.common.base.Preconditions;
-import com.google.common.collect.AbstractIterator;
 
 import net.minecraft.server.Block;
 import net.minecraft.server.BlockPosition;
@@ -42,7 +33,7 @@ public class BlockHelper {
         for (int x = startX; x <= endX; x++) {
             for (int y = startY; y <= endY; y++) {
                 for (int z = startZ; z <= endZ; z++) {
-                    adjacent.setValues(x, y, z);
+                    adjacent.setValues(x, y, z); // Nacho - deobfuscate setValues
                     if (!predicate.test(world, adjacent)) return false;
                 }
             }

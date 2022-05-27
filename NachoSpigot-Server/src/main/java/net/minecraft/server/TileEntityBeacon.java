@@ -10,7 +10,7 @@ import org.bukkit.craftbukkit.event.CraftEventFactory;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
-import org.github.paperspigot.event.block.BeaconEffectEvent;
+import com.destroystokyo.paper.event.block.BeaconEffectEvent;
 // PaperSpigot end
 
 import java.util.List;
@@ -141,7 +141,7 @@ public class TileEntityBeacon extends TileEntityContainer implements IUpdatePlay
         BlockPosition.MutableBlockPosition mutableBlockPosition = new BlockPosition.MutableBlockPosition();
         for (int y = posY + 1; y < 256; ++y) {
             Block block = this.world
-                    .getType(mutableBlockPosition.c(posX, y, posZ))
+                    .getType(mutableBlockPosition.setValues(posX, y, posZ)) // Nacho - deobfuscate setValues
                     .getBlock();
             if (block != Blocks.STAINED_GLASS && block != Blocks.STAINED_GLASS_PANE
                     && block.p() >= 15 && block != Blocks.BEDROCK) {

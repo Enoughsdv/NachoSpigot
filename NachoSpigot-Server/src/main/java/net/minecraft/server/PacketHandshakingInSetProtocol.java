@@ -11,18 +11,18 @@ public class PacketHandshakingInSetProtocol implements Packet<PacketHandshakingI
 
     public PacketHandshakingInSetProtocol() {}
 
-    public void a(PacketDataSerializer packetdataserializer) throws IOException {
-        this.a = packetdataserializer.e();
-        this.hostname = packetdataserializer.c(Short.MAX_VALUE); // Spigot
-        this.port = packetdataserializer.readUnsignedShort();
-        this.d = EnumProtocol.a(packetdataserializer.e());
+    public void a(PacketDataSerializer serializer) throws IOException {
+        this.a = serializer.readVarInt();
+        this.hostname = serializer.readUtf(Short.MAX_VALUE); // Spigot // Nacho - deobfuscate readUtf
+        this.port = serializer.readUnsignedShort();
+        this.d = EnumProtocol.isValidIntention(serializer.readVarInt());
     }
 
-    public void b(PacketDataSerializer packetdataserializer) throws IOException {
-        packetdataserializer.b(this.a);
-        packetdataserializer.a(this.hostname);
-        packetdataserializer.writeShort(this.port);
-        packetdataserializer.b(this.d.a());
+    public void b(PacketDataSerializer serializer) throws IOException {
+        serializer.writeVarInt(this.a); // Nacho - deobfuscate writeVarInt
+        serializer.a(this.hostname);
+        serializer.writeShort(this.port);
+        serializer.writeVarInt(this.d.getStateId()); // Nacho - deobfuscate writeVarInt
     }
 
     public void a(PacketHandshakingInListener packethandshakinginlistener) {

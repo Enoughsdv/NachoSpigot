@@ -1,13 +1,12 @@
 package net.minecraft.server;
 
+import com.destroystokyo.paper.PaperConfig;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Floats;
 import dev.cobblesword.nachospigot.Nacho;
 import dev.cobblesword.nachospigot.events.PlayerIllegalBehaviourEvent;
 import io.netty.buffer.Unpooled;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.GenericFutureListener;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -16,6 +15,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
+
+import me.elier.nachospigot.config.NachoConfig; // Nacho
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -63,8 +64,6 @@ import org.bukkit.inventory.InventoryView;
 import org.bukkit.util.NumberConversions;
 import co.aikar.timings.SpigotTimings; // Spigot
 // CraftBukkit end
-
-import org.github.paperspigot.PaperSpigotConfig; // PaperSpigot
 
 public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerListBox {
 
@@ -136,9 +135,7 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
     {
         this.h = false;
         ++this.e;
-        
-        // Feather start back port 1.12.2 keepalive handling
-        /* this.minecraftServer.methodProfiler.a("keepAlive");
+        this.minecraftServer.methodProfiler.a("keepAlive");
         if ((long) this.e - this.k > 40L)
         {
             this.k = (long) this.e;
@@ -147,23 +144,7 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
             this.sendPacket(new PacketPlayOutKeepAlive(this.i));
         }
 
-        this.minecraftServer.methodProfiler.b(); */
-        
-        final long currentTime = this.getCurrentMillis();
-        final long elapsedTime = currentTime - this.getLastPing();
-        if (isPendingPing) {
-            if (!this.processedDisconnect && elapsedTime >= KEEPALIVE_LIMIT) {
-                this.disconnect("Timed out");
-		return;
-            }
-        } else if (elapsedTime >= 15000L) {
-            isPendingPing = true;
-            this.setLastPing(currentTime);
-            this.setKeepAliveID((int) /*casting to an integer is the vanilla behavior*/ currentTime );
-            this.sendPacket(new PacketPlayOutKeepAlive(this.getKeepAliveID()));
-        }
-        // Feather end
-        
+        this.minecraftServer.methodProfiler.b();
         // CraftBukkit start
         for (int spam; (spam = this.chatThrottle) > 0 && !chatSpamField.compareAndSet(this, spam, spam - 1); ) ;
         /* Use thread-safe field access instead
@@ -184,63 +165,6 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
         }
 
     }
-    
-    
-    /* A 1.8.8 client is sending KeepAlive packets with 0 id
-     * while rendering the GUIDownloadWorld
-     * The server would disconnect the client
-     * so must we consider this issue */
-    private boolean isDownloading; 
-    
-    public boolean isDownloading() { return isDownloading; }
-
-    public static final long KEEPALIVE_LIMIT = 30000;
-    
-    private boolean noKeepalives; // Prevent spamming the warning
-    
-    //Feather start
-    @Override
-    public void a(PacketPlayInKeepAlive packetplayinkeepalive) {
-        if(noKeepalives) return;
-        if (isPendingPing && packetplayinkeepalive.a() == getKeepAliveID()) {
-            int i = (int) (this.d() - getLastPing());
-            this.player.ping = (this.player.ping * 3 + i) / 4;
-            isPendingPing = false; isDownloading = false;
-        }else {
-            if(packetplayinkeepalive.a() == 0) {
-                isDownloading = true;
-            }else {
-                noKeepalives = true;
-                c.warn("{} sent an invalid keepalive! pending keepalive: {} got id: {} expected id: {}", this.player.getName(), isPendingPing, packetplayinkeepalive.a(), this.getKeepAliveID());
-                this.minecraftServer.postToMainThread(() -> disconnect("invalid keepalive"));
-            }    	   
-        }
-    }
-    //Feather end
-
-       
-    // Feather start obf help
-    private boolean isPendingPing;
-   
-    private void setLastPing(final long lastPing) {
-        this.j = lastPing;
-    }
-     private long getLastPing() {
-        return this.j;
-    }
-   
-    private void setKeepAliveID(final int keepAliveID) {
-        this.i = keepAliveID;
-    }
-    
-    private int getKeepAliveID() {
-        return this.i;
-    }
-    
-    private long getCurrentMillis() {
-        return this.d();
-    }
-    // Feather end
 
     public NetworkManager getNetworkManager() {
         return this.networkManager;
@@ -270,19 +194,11 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
         // CraftBukkit end
         final ChatComponentText chatcomponenttext = new ChatComponentText(s);
 
-        this.networkManager.a(new PacketPlayOutKickDisconnect(chatcomponenttext), new GenericFutureListener() {
-            public void operationComplete(Future future) throws Exception { // CraftBukkit - fix decompile error
-                PlayerConnection.this.networkManager.close(chatcomponenttext);
-            }
-        }, new GenericFutureListener[0]);
+        this.networkManager.a(new PacketPlayOutKickDisconnect(chatcomponenttext), future -> PlayerConnection.this.networkManager.close(chatcomponenttext));
         this.a(chatcomponenttext); // CraftBukkit - fire quit instantly
         this.networkManager.k();
         // CraftBukkit - Don't wait
-        this.minecraftServer.postToMainThread(new Runnable() {
-             public void run() {
-                 PlayerConnection.this.networkManager.l();
-            }
-        });
+        this.minecraftServer.postToMainThread(this.networkManager::l);
     }
 
     public void a(PacketPlayInSteerVehicle packetplayinsteervehicle) {
@@ -356,6 +272,7 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
                 double delta = Math.pow(this.lastPosX - to.getX(), 2) + Math.pow(this.lastPosY - to.getY(), 2) + Math.pow(this.lastPosZ - to.getZ(), 2);
                 float deltaAngle = Math.abs(this.lastYaw - to.getYaw()) + Math.abs(this.lastPitch - to.getPitch());
 
+                // Nacho start
                 if ((packetplayinflying.hasPos) && ((delta > 0.0D) && (this.checkMovement && !this.player.dead))) {
                     for (dev.cobblesword.nachospigot.protocol.MovementListener movementListener : Nacho.get().getMovementListeners()) {
                         try {
@@ -365,7 +282,7 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
                         }
                     }
                 }
-                  
+
                 if ((packetplayinflying.hasLook) && ((deltaAngle > 0.0F) && (this.checkMovement && !this.player.dead))) {
                     for (dev.cobblesword.nachospigot.protocol.MovementListener movementListener : Nacho.get().getMovementListeners()) {
                         try {
@@ -375,6 +292,7 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
                         }
                     }
                 }
+                // Nacho end
 
                 if ((delta > 1f / 256 || deltaAngle > 10f) && (this.checkMovement && !this.player.dead))
                 {
@@ -384,15 +302,17 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
                     this.lastYaw = to.getYaw();
                     this.lastPitch = to.getPitch();
 
+
                     // Skip the first time we do this
-                    if (Nacho.get().getConfig().firePlayerMoveEvent) { // Spigot - don't skip any move events
+                    if (NachoConfig.firePlayerMoveEvent) { // Spigot - don't skip any move events
                         Location oldTo = to.clone();
                         PlayerMoveEvent event = new PlayerMoveEvent(player, from, to);
                         this.server.getPluginManager().callEvent(event);
 
                         // If the event is cancelled we move the player back to their old location.
                         if (event.isCancelled())
-                        {
+                        {	
+                        Nacho.get().getLagCompensator().registerMovement(player, from); // Nacho
                             this.player.playerConnection.sendPacket(new PacketPlayOutPosition(from.getX(), from.getY(), from.getZ(), from.getYaw(), from.getPitch(), Collections.<PacketPlayOutPosition.EnumPlayerTeleportFlags>emptySet()));
                             return;
                         }
@@ -413,6 +333,8 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
                             return;
                         }
                     }
+                    
+                    Nacho.get().getLagCompensator().registerMovement(player, to); // Nacho - register movement
                 }
 
                 if (this.checkMovement && !this.player.dead)
@@ -638,6 +560,7 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
             f1 = to.getPitch();
         }
 
+        Nacho.get().getLagCompensator().registerMovement(player, to); // Nacho - register teleport
         this.internalTeleport(d0, d1, d2, f, f1, set);
     }
 
@@ -793,7 +716,7 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
         WorldServer worldserver = this.minecraftServer.getWorldServer(this.player.dimension);
         boolean throttled = false;
         // PaperSpigot - Allow disabling the player interaction limiter
-        if (org.github.paperspigot.PaperSpigotConfig.interactLimitEnabled && lastPlace != -1 && packetplayinblockplace.timestamp - lastPlace < 30 && packets++ >= 4) {
+        if (PaperConfig.interactLimitEnabled && lastPlace != -1 && packetplayinblockplace.timestamp - lastPlace < 30 && packets++ >= 4) {
             throttled = true;
         } else if ( packetplayinblockplace.timestamp - lastPlace >= 30 || lastPlace == -1 )
         {
@@ -887,6 +810,8 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
                 }
 
                 // SportPaper end
+            } else{
+                if(MinecraftServer.currentTick - lastDropTick > 1 && NachoConfig.fixEatWhileRunning) this.player.playerInteractManager.useItem(this.player, this.player.world, itemstack);
             }
             // Spigot end
 
@@ -896,7 +821,7 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
             always = (itemstack.count != itemstackAmount) || itemstack.getItem() == Item.getItemOf(Blocks.WATERLILY);
             // CraftBukkit end
         } else if (blockposition.getY() >= this.minecraftServer.getMaxBuildHeight() - 1 && (enumdirection == EnumDirection.UP || blockposition.getY() >= this.minecraftServer.getMaxBuildHeight())) {
-            ChatMessage chatmessage = new ChatMessage("build.tooHigh", new Object[] { Integer.valueOf(this.minecraftServer.getMaxBuildHeight())});
+            ChatMessage chatmessage = new ChatMessage("build.tooHigh", this.minecraftServer.getMaxBuildHeight());
 
             chatmessage.getChatModifier().setColor(EnumChatFormat.RED);
             this.player.playerConnection.sendPacket(new PacketPlayOutChat(chatmessage));
@@ -941,7 +866,7 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
             // CraftBukkit - TODO CHECK IF NEEDED -- new if structure might not need 'always'. Kept it in for now, but may be able to remove in future
             // KigPaper-0172
             if (
-                    Nacho.get().getConfig().stopDecodingItemStackOnPlace ? (
+                    NachoConfig.stopDecodingItemStackOnPlace ? (
                             !ItemStack.matches(this.player.inventory.getItemInHand(), itemstack) || always // KigPaper - use saved itemstack instead of stack from packet
                             ) :
                             (!ItemStack.matches(this.player.inventory.getItemInHand(), packetplayinblockplace.getItemStack()) || always)
@@ -1446,10 +1371,12 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
 
         case 3:
             this.player.setSprinting(true);
+            this.player.setExtraKnockback(true);
             break;
 
         case 4:
             this.player.setSprinting(false);
+            this.player.setExtraKnockback(false);
             break;
 
         case 5:
@@ -1494,10 +1421,11 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
             double d0 = 36.0D;
 
             if (!flag) {
-                d0 = 9.0D;
+                // Increase the no player-player vision maximum reach
+                d0 = (NachoConfig.enableImprovedHitReg) ? 12.75D : 9.0D;
             }
 
-            if (this.player.h(entity) < d0) {
+            if (this.player.h(entity) <= d0) {
                 ItemStack itemInHand = this.player.inventory.getItemInHand(); // CraftBukkit
 
                 if (packetplayinuseentity.a() == PacketPlayInUseEntity.EnumEntityUseAction.INTERACT
@@ -1553,6 +1481,11 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
                     }
 
                     this.player.attack(entity);
+                    // wuangg start - fix sword blocking desync
+                    if (this.player.isBlocking()) {
+                    	this.player.bU();
+                    }
+                    // wuangg end
 
                     // CraftBukkit start
                     if (itemInHand != null && itemInHand.count <= -1) {
@@ -1836,19 +1769,6 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
                         case ALLOW:
                         case DEFAULT:
                             itemstack = this.player.activeContainer.clickItem(packetplayinwindowclick.b(), packetplayinwindowclick.c(), packetplayinwindowclick.f(), this.player);
-                            // PaperSpigot start - Stackable Buckets
-                            if (itemstack != null &&
-                                    ((itemstack.getItem() == Items.LAVA_BUCKET && PaperSpigotConfig.stackableLavaBuckets) ||
-                                            (itemstack.getItem() == Items.WATER_BUCKET && PaperSpigotConfig.stackableWaterBuckets) ||
-                                            (itemstack.getItem() == Items.MILK_BUCKET && PaperSpigotConfig.stackableMilkBuckets))) {
-                                if (action == InventoryAction.MOVE_TO_OTHER_INVENTORY) {
-                                    this.player.updateInventory(this.player.activeContainer);
-                                } else {
-                                    this.player.playerConnection.sendPacket(new PacketPlayOutSetSlot(-1, -1, this.player.inventory.getCarried()));
-                                    this.player.playerConnection.sendPacket(new PacketPlayOutSetSlot(this.player.activeContainer.windowId, packetplayinwindowclick.b(), this.player.activeContainer.getSlot(packetplayinwindowclick.b()).getItem()));
-                                }
-                            }
-                            // PaperSpigot end
                             break;
                         case DENY:
                             /* Needs enum constructor in InventoryAction
@@ -2038,7 +1958,7 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
                     entityitem.j();
                 }
             }
-        } else if (Nacho.get().getConfig().kickOnIllegalBehavior) {
+        } else if (NachoConfig.kickOnIllegalBehavior) {
             PlayerIllegalBehaviourEvent event = new PlayerIllegalBehaviourEvent(
                     this.server.getPlayer(this.player),
                     PlayerIllegalBehaviourEvent.IllegalType.CREATIVE_ACTION_NOT_IN_CREATIVE
@@ -2112,7 +2032,15 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
 
     }
 
+    public void a(PacketPlayInKeepAlive packetplayinkeepalive)
+    {
+        if (packetplayinkeepalive.a() == this.i) {
+            int i = (int) (this.d() - this.j);
 
+            this.player.ping = (this.player.ping * 3 + i) / 4;
+        }
+
+    }
 
     private long d() {
         return System.nanoTime() / 1000000L;
@@ -2132,21 +2060,23 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
         }
         // CraftBukkit end
     }
-
+	
+	
     public void a(PacketPlayInTabComplete packetplayintabcomplete) {
         PlayerConnectionUtils.ensureMainThread(packetplayintabcomplete, this, this.player.u());
-        // CraftBukkit start
-        if (chatSpamField.addAndGet(this, 10) > 500 && !this.minecraftServer.getPlayerList().isOp(this.player.getProfile())) {
-            this.disconnect("disconnect.spam");
-            return;
+        // CraftBukkit/Nacho start
+        if (!NachoConfig.disableDisconnectSpam) {
+            if (chatSpamField.addAndGet(this, 10) > 500 && !this.minecraftServer.getPlayerList().isOp(this.player.getProfile())) {
+                this.disconnect("disconnect.spam");
+                return;
+            }
         }
-        // CraftBukkit end
+        // CraftBukkit/Nacho end
         ArrayList arraylist = Lists.newArrayList();
         Iterator iterator = this.minecraftServer.tabCompleteCommand(this.player, packetplayintabcomplete.a(), packetplayintabcomplete.b()).iterator();
 
         while (iterator.hasNext()) {
             String s = (String) iterator.next();
-
             arraylist.add(s);
         }
 
@@ -2161,7 +2091,7 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
     public void a(PacketPlayInCustomPayload packetplayincustompayload) {
         PlayerConnectionUtils.ensureMainThread(packetplayincustompayload, this, this.player.u());
         if(isExploiter) return; // NachoSpigot - ignore if they have exploited
-        PacketDataSerializer packetdataserializer;
+        PacketDataSerializer serializer;
         ItemStack itemstack;
         ItemStack itemstack1;
 
@@ -2178,7 +2108,6 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
                 }
             } catch (Throwable ex) {
                 this.isExploiter = true;
-                System.out.println(this.player.getName() + " has tried to crash the server...");
                 this.disconnect("Chill man, dam!");
                 return;
             }
@@ -2189,10 +2118,10 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
                 return;
             }
 
-            packetdataserializer = new PacketDataSerializer(Unpooled.wrappedBuffer(packetplayincustompayload.b()));
+            serializer = new PacketDataSerializer(Unpooled.wrappedBuffer(packetplayincustompayload.b()));
 
             try {
-                itemstack = packetdataserializer.decodeItemStack();
+                itemstack = serializer.decodeItemStack();
                 if (itemstack == null) {
                     return;
                 }
@@ -2216,7 +2145,7 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
                 this.disconnect("Invalid book data!"); // CraftBukkit
                 return;
             } finally {
-                packetdataserializer.release();
+                serializer.release();
             }
 
             return;
@@ -2225,10 +2154,10 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
                 disconnect("Book edited too quickly!");
                 return;
             }
-            packetdataserializer = new PacketDataSerializer(Unpooled.wrappedBuffer(packetplayincustompayload.b()));
+            serializer = new PacketDataSerializer(Unpooled.wrappedBuffer(packetplayincustompayload.b()));
 
             try {
-                itemstack = packetdataserializer.decodeItemStack();
+                itemstack = serializer.decodeItemStack();
                 if (itemstack == null) {
                     return;
                 }
@@ -2257,7 +2186,7 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
                 this.disconnect("Invalid book data!"); // CraftBukkit
                 return;
             } finally {
-                packetdataserializer.release();
+                serializer.release();
             }
 
             return;
@@ -2277,28 +2206,28 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
             if (!this.minecraftServer.getEnableCommandBlock()) {
                 this.player.sendMessage(new ChatMessage("advMode.notEnabled"));
             } else if (this.player.getBukkitEntity().isOp() && this.player.abilities.canInstantlyBuild) { // CraftBukkit - Change to Bukkit OP versus Vanilla OP
-                packetdataserializer = packetplayincustompayload.b();
+                serializer = packetplayincustompayload.b();
 
                 try {
-                    byte b0 = packetdataserializer.readByte();
+                    byte b0 = serializer.readByte();
                     CommandBlockListenerAbstract commandblocklistenerabstract = null;
 
                     if (b0 == 0) {
-                        TileEntity tileentity = this.player.world.getTileEntity(new BlockPosition(packetdataserializer.readInt(), packetdataserializer.readInt(), packetdataserializer.readInt()));
+                        TileEntity tileentity = this.player.world.getTileEntity(new BlockPosition(serializer.readInt(), serializer.readInt(), serializer.readInt()));
 
                         if (tileentity instanceof TileEntityCommand) {
                             commandblocklistenerabstract = ((TileEntityCommand) tileentity).getCommandBlock();
                         }
                     } else if (b0 == 1) {
-                        Entity entity = this.player.world.a(packetdataserializer.readInt());
+                        Entity entity = this.player.world.a(serializer.readInt());
 
                         if (entity instanceof EntityMinecartCommandBlock) {
                             commandblocklistenerabstract = ((EntityMinecartCommandBlock) entity).getCommandBlock();
                         }
                     }
 
-                    String s = packetdataserializer.c(packetdataserializer.readableBytes());
-                    boolean flag = packetdataserializer.readBoolean();
+                    String s = serializer.readUtf(serializer.readableBytes()); // Nacho - deobfuscate readUtf
+                    boolean flag = serializer.readBoolean();
 
                     if (commandblocklistenerabstract != null) {
                         commandblocklistenerabstract.setCommand(s);
@@ -2314,7 +2243,7 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
                     PlayerConnection.c.error("Couldn\'t set command block", exception3);
                     this.disconnect("Invalid CommandBlock data!"); // CraftBukkit
                 } finally {
-                    packetdataserializer.release();
+                    serializer.release();
                 }
             } else {
                 this.player.sendMessage(new ChatMessage("advMode.notAllowed", new Object[0]));
@@ -2322,9 +2251,9 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
         } else if ("MC|Beacon".equals(packetplayincustompayload.a())) {
             if (this.player.activeContainer instanceof ContainerBeacon) {
                 try {
-                    packetdataserializer = packetplayincustompayload.b();
-                    int j = packetdataserializer.readInt();
-                    int k = packetdataserializer.readInt();
+                    serializer = packetplayincustompayload.b();
+                    int j = serializer.readInt();
+                    int k = serializer.readInt();
                     ContainerBeacon containerbeacon = (ContainerBeacon) this.player.activeContainer;
                     Slot slot = containerbeacon.getSlot(0);
 
@@ -2345,7 +2274,7 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
             ContainerAnvil containeranvil = (ContainerAnvil) this.player.activeContainer;
 
             if (packetplayincustompayload.b() != null && packetplayincustompayload.b().readableBytes() >= 1) {
-                String s1 = SharedConstants.a(packetplayincustompayload.b().c(32767));
+                String s1 = SharedConstants.a(packetplayincustompayload.b().readUtf(32767)); // Nacho - deobfuscate readUtf
 
                 if (s1.length() <= 30) {
                     containeranvil.a(s1);

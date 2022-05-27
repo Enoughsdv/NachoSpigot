@@ -19,12 +19,16 @@ import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
 
+// Nacho start
 import com.eatthepath.uuid.FastUUID;
 import dev.cobblesword.nachospigot.Nacho;
-import dev.cobblesword.nachospigot.knockback.Knockback;
-import org.bukkit.craftbukkit.inventory.*;
+import dev.cobblesword.nachospigot.knockback.KnockbackConfig;
+import me.elier.nachospigot.config.NachoConfig;
+import dev.cobblesword.nachospigot.commons.minecraft.PluginUtils;
 import xyz.sculas.nacho.malware.AntiMalware;
-import xyz.sculas.nacho.patches.RuntimePatches;
+// Nacho end
+
+import com.destroystokyo.paper.PaperConfig; // Paper
 import net.minecraft.server.*;
 
 import org.bukkit.BanList;
@@ -65,6 +69,7 @@ import org.bukkit.craftbukkit.util.CraftMagicNumbers;
 import org.bukkit.craftbukkit.util.DatFileFilter;
 import org.bukkit.craftbukkit.util.Versioning;
 import org.bukkit.craftbukkit.util.permissions.CraftDefaultPermissions;
+import org.bukkit.craftbukkit.inventory.*;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerChatTabCompleteEvent;
@@ -136,7 +141,7 @@ public final class CraftServer implements Server {
     private YamlConfiguration configuration;
     private YamlConfiguration commandsConfiguration;
     private final Yaml yaml = new Yaml(new SafeConstructor());
-    private final Map<UUID, OfflinePlayer> offlinePlayers = new MapMaker().softValues().makeMap();
+    private final Map<UUID, OfflinePlayer> offlinePlayers = new MapMaker().weakValues().makeMap();
     private final EntityMetadataStore entityMetadata = new EntityMetadataStore();
     private final PlayerMetadataStore playerMetadata = new PlayerMetadataStore();
     private final WorldMetadataStore worldMetadata = new WorldMetadataStore();
@@ -243,7 +248,7 @@ public final class CraftServer implements Server {
         // enablePlugins(PluginLoadOrder.STARTUP);
         // Spigot End
 
-        this.serverName = Nacho.get().getConfig().serverBrandName;
+        this.serverName = NachoConfig.serverBrandName;
     }
 
     public boolean getCommandBlockOverride(String command) {
@@ -284,32 +289,45 @@ public final class CraftServer implements Server {
             for (Plugin plugin : plugins) {
                 try {
                     // Nacho start - [Nacho-0047] Little anti-malware
-                    if (Nacho.get().getConfig().checkForMalware) {
+                    if (NachoConfig.checkForMalware) {
                         AntiMalware.find(plugin);
                     }
                     // Nacho end
-                    String message = String.format("Loading %s", plugin.getDescription().getFullName());
-                    // Nacho start - [Nacho-0043] Fix ProtocolLib
-                    if(plugin.getDescription().getFullName().contains("ProtocolLib") && Nacho.get().getConfig().patchProtocolLib) {
-                        boolean val = RuntimePatches.applyProtocolLibPatch(plugin).join();
-                        if(val) {
-                            Logger.getLogger(CraftServer.class.getName()).log(Level.INFO, "Callback returned a good state, ProtocolLib patch was successful and ProtocolLib is now loading.");
-                        } else {
-                            Logger.getLogger(CraftServer.class.getName()).log(Level.SEVERE, "An error occurred trying to patch ProtocolLib, the plugin will not work as expected!");
+
+                    // Nacho start - Add notice for older ProtocolLib versions
+                    if(plugin.getDescription().getFullName().contains("ProtocolLib")) {
+                        String[] tmp = plugin.getDescription().getVersion().split("\\.");
+                        if (Integer.parseInt(tmp[0]) <= 4 && Integer.parseInt(tmp[1]) <= 6) {
+                            logger.warning(
+                                    "Please update to ProtocolLib version 4.7.0 or higher!\n" +
+                                            "In version 4.6.0 and lower, ProtocolLib does not work as expected due to a netty update.\n" +
+                                            "So.. once again, please update!\n" +
+                                            "You can download the latest version with this link: " +
+                                            "https://github.com/dmulloy2/ProtocolLib/releases/latest\n" +
+                                            "Sleeping for 10s so this message can be read."
+                            );
+                            Thread.sleep(10000);
                         }
                     }
                     // Nacho end
-                    // Nacho start - [Nacho-0044] Fix Citizens
-                    else if(plugin.getDescription().getFullName().contains("Citizens")) {
-                        boolean val = RuntimePatches.applyCitizensPatch(plugin).join();
-                        if(val) {
-                            Logger.getLogger(CraftServer.class.getName()).log(Level.INFO, "Callback returned a good state, Citizens patch was successful and Citizens is now loading.");
-                        } else {
-                            Logger.getLogger(CraftServer.class.getName()).log(Level.SEVERE, "An error occurred trying to patch Citizens, the plugin will not work as expected!");
+
+                    // Nacho start - Add notice for older Citizens versions
+                    else if(plugin.getDescription().getFullName().equals("Citizens")) {
+                        if(PluginUtils.getCitizensBuild(plugin) < 2396) {
+                            logger.warning(
+                                    "Please update to Citizens 2.0.28 #7 or higher!\n" +
+                                         "Previously, there was a fix for older versions, but that has been removed.\n" +
+                                         "So, if you want Citizens to work, please update!\n" +
+                                         "You can download the latest version with this link: " +
+                                         "https://ci.citizensnpcs.co/job/Citizens2/\n" +
+                                         "Sleeping for 10s so this message can be read."
+                            );
+                            Thread.sleep(10000);
                         }
                     }
                     // Nacho end
-                    plugin.getLogger().info(message);
+
+                    plugin.getLogger().info(String.format("Loading %s", plugin.getDescription().getFullName()));
                     plugin.onLoad();
                 } catch (Throwable ex) {
                     Logger.getLogger(CraftServer.class.getName()).log(Level.SEVERE, ex.getMessage() + " initializing " + plugin.getDescription().getFullName() + " (Is it up to date?)", ex);
@@ -733,9 +751,10 @@ public final class CraftServer implements Server {
         }
 
         org.spigotmc.SpigotConfig.init((File) console.options.valueOf("spigot-settings")); // Spigot
-        org.github.paperspigot.PaperSpigotConfig.init((File) console.options.valueOf("paper-settings")); // PaperSpigot
+        PaperConfig.init((File) console.options.valueOf("paper-settings")); // PaperSpigot
         net.techcable.tacospigot.TacoSpigotConfig.init((File) console.options.valueOf("taco-settings")); // TacoSpigot
-        if(Nacho.get() == null) new Nacho();
+        NachoConfig.init((File) console.options.valueOf("nacho-settings")); // NachoSpigot
+        KnockbackConfig.init((File) console.options.valueOf("knockback-settings")); // NachoSpigot
         for (WorldServer world : console.worlds) {
             world.worldData.setDifficulty(difficulty);
             world.setSpawnFlags(monsters, animals);
@@ -753,15 +772,15 @@ public final class CraftServer implements Server {
             world.spigotConfig.init(); // Spigot
             world.paperSpigotConfig.init(); // PaperSpigot
             world.tacoSpigotConfig.init(); // TacoSpigot
+            world.nachoSpigotConfig.init(); // NachoSpigot
         }
 
         pluginManager.clearPlugins();
         commandMap.clearCommands();
         resetRecipes();
         org.spigotmc.SpigotConfig.registerCommands(); // Spigot
-        org.github.paperspigot.PaperSpigotConfig.registerCommands(); // PaperSpigot
+        PaperConfig.registerCommands(); // PaperSpigot
         Nacho.get().registerCommands(); // NachoSpigot :: Commands
-        Knockback.get().registerCommands(); // NS Knockback :: Commands
 
         overrideAllCommandBlockCommands = commandsConfiguration.getStringList("command-block-overrides").contains("*");
 
@@ -794,57 +813,6 @@ public final class CraftServer implements Server {
         enablePlugins(PluginLoadOrder.POSTWORLD);
     }
 
-    @Override
-    public void reloadKB() {
-        Knockback.get().reloadConfig();
-    }
-
-    @Override
-    public boolean customKnockback() { 
-        return Knockback.get().getConfig().customKnockback; 
-    };
-    
-    @Override
-    public void toggleKnockback(Boolean b) {
-        Knockback.get().getConfig().customKnockback = b;
-        Knockback.get().saveConfig();
-    }
-
-    @Override
-    public void setKnockbackFriction(double d) {
-        Knockback.get().getConfig().knockbackFriction = d;
-        Knockback.get().saveConfig();
-    }
-
-    @Override
-    public void setKnockbackHorizontal(double d) {
-        Knockback.get().getConfig().knockbackHorizontal = d;
-        Knockback.get().saveConfig();
-    }
-
-    @Override
-    public void setKnockbackVertical(double d) {
-        Knockback.get().getConfig().knockbackVertical = d;
-        Knockback.get().saveConfig();
-    }
-
-    @Override
-    public void setKnockbackVerticalLimit(double d) {
-        Knockback.get().getConfig().knockbackVerticalLimit = d;
-        Knockback.get().saveConfig();
-    }
-
-    @Override
-    public void setKnockbackExtraHorizontal(double d) {
-        Knockback.get().getConfig().knockbackExtraHorizontal = d;
-        Knockback.get().saveConfig();
-    }
-
-    @Override
-    public void setKnockbackExtraVertical(double d) {
-        Knockback.get().getConfig().knockbackExtraVertical = d;
-        Knockback.get().saveConfig();
-    }
 
     private void loadIcon() {
         icon = new CraftIconCache(null);
@@ -1009,7 +977,7 @@ public final class CraftServer implements Server {
         }
 
         pluginManager.callEvent(new WorldInitEvent(internal.getWorld()));
-        System.out.print("Preparing start region for level " + (console.worlds.size() - 1) + " (Seed: " + internal.getSeed() + ")");
+        logger.info("Preparing start region for level " + (console.worlds.size() - 1) + " (Seed: " + internal.getSeed() + ")");
 
         if (internal.getWorld().getKeepSpawnInMemory()) {
             short short1 = 196;
@@ -1026,7 +994,7 @@ public final class CraftServer implements Server {
                         int i1 = (short1 * 2 + 1) * (short1 * 2 + 1);
                         int j1 = (j + short1) * (short1 * 2 + 1) + k + 1;
 
-                        System.out.println("Preparing spawn area for " + name + ", " + (j1 * 100 / i1) + "%");
+                        logger.info("Preparing spawn area for " + name + ", " + (j1 * 100 / i1) + "%");
                         i = l;
                     }
 
@@ -1070,7 +1038,10 @@ public final class CraftServer implements Server {
         if (e.isCancelled()) {
             return false;
         }
-
+		
+	worlds.remove(world.getName().toLowerCase());
+        console.worlds.remove(handle);
+		
         if (save) {
             try {
                 handle.save(true, null);
@@ -1095,9 +1066,6 @@ public final class CraftServer implements Server {
             chunkProviderServer.chunkProvider = null;
             chunkProviderServer.chunks.clear();
         }
-
-        worlds.remove(world.getName().toLowerCase());
-        console.worlds.remove(handle);
 
         // KigPaper start - fix memory leak
         CraftingManager craftingManager = CraftingManager.getInstance();
@@ -1157,7 +1125,7 @@ public final class CraftServer implements Server {
     public void addWorld(World world) {
         // Check if a World already exists with the UID.
         if (getWorld(world.getUID()) != null) {
-            System.out.println("World " + world.getName() + " is a duplicate of another world and has been prevented from loading. Please delete the uid.dat file from " + world.getName() + "'s world directory if you want to be able to load the duplicate world.");
+            logger.warning("World " + world.getName() + " is a duplicate of another world and has been prevented from loading. Please delete the uid.dat file from " + world.getName() + "'s world directory if you want to be able to load the duplicate world.");
             return;
         }
         worlds.put(world.getName().toLowerCase(), world);
@@ -1438,9 +1406,8 @@ public final class CraftServer implements Server {
             // Spigot Start
             GameProfile profile = null;
             // Only fetch an online UUID in online mode
-            if ( MinecraftServer.getServer().getOnlineMode() || org.spigotmc.SpigotConfig.bungee )
-            {
-                profile = MinecraftServer.getServer().getUserCache().getProfile( name );
+            if (PaperConfig.isProxyOnlineMode()) { // Paper - Handle via setting // Nacho - Don't check for online mode twice
+                profile = MinecraftServer.getServer().getUserCache().getProfile(name);
             }
             // Spigot end
             if (profile == null) {
@@ -1577,20 +1544,35 @@ public final class CraftServer implements Server {
         return console.console;
     }
 
+    // Nacho start
     @Override
     public boolean versionCommandEnabled() {
-        return Nacho.get().getConfig().enableVersionCommand;
+        return NachoConfig.enableVersionCommand;
+    }
+
+    @Override
+    public boolean versionPermissionEnabled() {
+        return NachoConfig.enableVersionPermission;
     }
 
     @Override
     public boolean reloadCommandEnabled() {
-        return Nacho.get().getConfig().enableReloadCommand;
+        return NachoConfig.enableReloadCommand;
     }
 
     @Override
     public boolean pluginsCommandEnabled() {
-        return Nacho.get().getConfig().enablePluginsCommand;
+        return NachoConfig.enablePluginsCommand;
     }
+
+    @Override
+    public boolean pluginsPermissionEnabled() {
+        return NachoConfig.enablePluginsPermission;
+    }
+
+    @Override
+    public boolean helpCommandEnabled() {return NachoConfig.enableHelpCommand;}
+    // Nacho end
 
     public EntityMetadataStore getEntityMetadata() {
         return entityMetadata;
@@ -1918,8 +1900,16 @@ public final class CraftServer implements Server {
         @Override
         public YamlConfiguration getPaperSpigotConfig()
         {
-            return org.github.paperspigot.PaperSpigotConfig.config;
+            return PaperConfig.config;
         }
+
+        // Nacho start
+        @Override
+        public YamlConfiguration getTacoSpigotConfig() { return net.techcable.tacospigot.TacoSpigotConfig.config; }
+
+        @Override
+        public YamlConfiguration getNachoSpigotConfig() { return me.elier.nachospigot.config.NachoConfig.config; }
+        // Nacho end
 
         @Override
         public void restart() {

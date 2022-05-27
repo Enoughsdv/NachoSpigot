@@ -31,7 +31,6 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -71,7 +70,7 @@ public class UserCache {
         this.b();
     }
 
-    private static GameProfile a(MinecraftServer minecraftserver, String s) {
+    private static GameProfile lookupGameProfile(MinecraftServer minecraftServer, String name) { // Nacho - deobfuscate
         final GameProfile[] agameprofile = new GameProfile[1];
         ProfileLookupCallback profilelookupcallback = new ProfileLookupCallback() {
             public void onProfileLookupSucceeded(GameProfile gameprofile) {
@@ -83,10 +82,10 @@ public class UserCache {
             }
         };
 
-        minecraftserver.getGameProfileRepository().findProfilesByNames(new String[] { s}, Agent.MINECRAFT, profilelookupcallback);
-        if (!minecraftserver.getOnlineMode() && agameprofile[0] == null) {
-            UUID uuid = EntityHuman.a(new GameProfile((UUID) null, s));
-            GameProfile gameprofile = new GameProfile(uuid, s);
+        minecraftServer.getGameProfileRepository().findProfilesByNames(new String[] { name}, Agent.MINECRAFT, profilelookupcallback);
+        if (!minecraftServer.getOnlineMode() && agameprofile[0] == null && !org.apache.commons.lang3.StringUtils.isBlank(name)) { // Paper - Don't lookup a profile with a blank name
+            UUID uuid = EntityHuman.createPlayerUUID(new GameProfile((UUID) null, name)); // Nacho - deobfuscate createPlayerUUID
+            GameProfile gameprofile = new GameProfile(uuid, name);
 
             profilelookupcallback.onProfileLookupSucceeded(gameprofile);
         }
@@ -143,7 +142,7 @@ public class UserCache {
             this.e.remove(gameprofile);
             this.e.addFirst(gameprofile);
         } else {
-            gameprofile = a(this.f, s); // Spigot - use correct case for offline players
+            gameprofile = lookupGameProfile(this.f, s); // Spigot - use correct case for offline players // Nacho - deobfuscate lookupGameProfile
             if (gameprofile != null) {
                 this.a(gameprofile);
                 usercache_usercacheentry = (UserCache.UserCacheEntry) this.c.get(s1);
@@ -198,6 +197,8 @@ public class UserCache {
                     this.a(usercache_usercacheentry.a(), usercache_usercacheentry.b());
                 }
             }
+        } catch (FileNotFoundException | JsonParseException ignored) {
+            ;
         } catch (Exception ex) {
             // SportPaper - Catch all UserCache exceptions in one and always delete
             JsonList.a.warn( "Usercache.json is corrupted or has bad formatting. Deleting it to prevent further issues." );

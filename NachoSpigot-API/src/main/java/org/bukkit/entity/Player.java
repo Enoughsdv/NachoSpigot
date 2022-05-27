@@ -20,7 +20,7 @@ import org.bukkit.map.MapView;
 import org.bukkit.plugin.messaging.PluginMessageRecipient;
 import org.bukkit.scoreboard.Scoreboard;
 // PaperSpigot start
-import org.github.paperspigot.Title;
+import com.destroystokyo.paper.Title;
 // PaperSpigot end
 
 /**
@@ -965,6 +965,14 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
     public void hidePlayer(Player player);
 
     /**
+     * Hides a player from this player
+     *
+     * @param player Player to hide
+     * @param onTab true to hide player on tab-list
+     */
+    public void hidePlayer(Player player, boolean onTab);
+
+    /**
      * Allows this player to see a player that was previously hidden
      *
      * @param player Player to show
@@ -979,6 +987,15 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
      *     player
      */
     public boolean canSee(Player player);
+
+    /**
+     * Checks to see if a entity has been hidden from this player compared to shooter
+     *
+     * @param entity Entity to check
+     * @return True if the provided player is not being hidden from this
+     *     entity
+     */
+    public boolean canSee(Entity entity);
 
     /**
      * Checks to see if this player is currently standing on a block. This
@@ -1204,6 +1221,19 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
     // Paper - Undeprecate
     public void resetTitle();
 
+    /**
+     * Gets the player's current locale.
+     *
+     * The value of the locale String is not defined properly.
+     * <br>
+     * The vanilla Minecraft client will use lowercase language / country pairs
+     * separated by an underscore, but custom resource packs may use any format
+     * they wish.
+     *
+     * @return the player's locale
+     */
+    public String getLocale();
+
     // TacoSpigot start
     /**
      * Request that the player's client download and switch resource packs.
@@ -1315,7 +1345,7 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
         }
 
         /**
-         * Gets all players hidden with {@link hidePlayer(org.bukkit.entity.Player)}.
+         * Gets all players hidden with {@link Player#hidePlayer(Player)}.
          *
          * @return a Set with all hidden players
          */
@@ -1393,6 +1423,7 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
     Spigot spigot();
     // Spigot end
 
+    // Nacho start
     class NachoPlayer {
         /**
          * Sends an actionbar message to the player
@@ -1411,6 +1442,7 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
     }
 
     NachoPlayer nacho();
+    // Nacho end
 
     class Unsafe {
         /**

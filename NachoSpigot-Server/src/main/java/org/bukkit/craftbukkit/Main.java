@@ -7,6 +7,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import dev.cobblesword.nachospigot.Nacho;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import net.minecraft.server.MinecraftServer;
@@ -20,13 +22,22 @@ public class Main {
     public static boolean useConsole = true;
 
     public static void main(String[] args) {
+        if(System.getProperty("ignoreDeprecated") != "true") {
+            System.err.println("NachoSpigot is no longer maintained or supported");
+            System.err.println("There are many unfixed bugs that will not be fixed");
+            System.err.println("It is recommended that you use a different 1.8 fork or use newer versions with backwards-compatibility plugins");
+            System.err.println("If you know what you're doing, you can continue using NachoSpigot by setting the \"ignoreDeprecated\" JVM argument to \"true\"");
+            System.exit(1);
+        }
+        System.setProperty("log4j2.formatMsgNoLookups", "true");
+
         try {
-            if(!SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_15)) {
-                System.err.println("It seems like you are not using Java 15!");
-                System.out.println("The use of Java 15 is strongly recommended.");
+            if(!SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_17)) {
+                Nacho.LOGGER.warn("It seems like you are not using Java 17!");
+                Nacho.LOGGER.warn("The use of Java 17 is strongly recommended.");
             }
         } catch (Exception ignored) {
-            System.err.println("Failed to get Java version! Continuing either way..");
+            Nacho.LOGGER.error("Failed to get Java version! Continuing either way..");
         }
         OptionParser parser = new OptionParser() {
             {
@@ -134,7 +145,7 @@ public class Main {
                 // Spigot End
 
                 // PaperSpigot Start
-                acceptsAll(asList("paper", "paper-settings"), "File for paperspigot settings")
+                acceptsAll(asList("paper", "paper-settings"), "File for paper settings")
                         .withRequiredArg()
                         .ofType(File.class)
                         .defaultsTo(new File("paper.yml"))
@@ -148,6 +159,18 @@ public class Main {
                         .defaultsTo(new File("taco.yml"))
                         .describedAs("Yml file");
                 // TacoSpigot end
+                // NachoSpigot start
+                acceptsAll(asList("nacho", "nacho-settings"), "File for nachospigot settings")
+                        .withRequiredArg()
+                        .ofType(File.class)
+                        .defaultsTo(new File("nacho.yml"))
+                        .describedAs("Yml file");
+                acceptsAll(asList("knockback", "knockback-settings"), "File for nachospigot knockback settings")
+                        .withRequiredArg()
+                        .ofType(File.class)
+                        .defaultsTo(new File("knockback.yml"))
+                        .describedAs("Yml file");
+                // NachoSpigot end
             }
         };
 
@@ -166,12 +189,12 @@ public class Main {
                 Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
             }
         } else if (options.has("v")) {
-            System.out.println(CraftServer.class.getPackage().getImplementationVersion());
+            Nacho.LOGGER.info(CraftServer.class.getPackage().getImplementationVersion());
         } else {
             // Do you love Java using + and ! as string based identifiers? I sure do!
             String path = new File(".").getAbsolutePath();
             if (path.contains("!") || path.contains("+")) {
-                System.err.println("Cannot run server in a directory with ! or + in the pathname. Please rename the affected folders and try again.");
+                Nacho.LOGGER.error("Cannot run server in a directory with ! or + in the pathname. Please rename the affected folders and try again.");
                 return;
             }
 
@@ -188,6 +211,7 @@ public class Main {
                 }
 
                 if (useJline) {
+                    System.setProperty( "library.jansi.version", "NachoSpigot" );
                     AnsiConsole.systemInstall();
                 } else {
                     // This ensures the terminal literal will always match the jline implementation
@@ -211,12 +235,12 @@ public class Main {
                 }
                 if ( Float.parseFloat( System.getProperty( "java.class.version" ) ) < 52 && maxPermGen < ( 128 << 10 ) ) // 128mb
                 {
-                    System.out.println( "Warning, your max perm gen size is not set or less than 128mb. It is recommended you restart Java with the following argument: -XX:MaxPermSize=128M" );
-                    System.out.println( "Please see http://www.spigotmc.org/wiki/changing-permgen-size/ for more details and more in-depth instructions." );
+                    Nacho.LOGGER.warn( "Warning, your max perm gen size is not set or less than 128mb. It is recommended you restart Java with the following argument: -XX:MaxPermSize=128M" );
+                    Nacho.LOGGER.warn( "Please see http://www.spigotmc.org/wiki/changing-permgen-size/ for more details and more in-depth instructions." );
                 }
                 // Spigot End
+                Nacho.LOGGER.info("Loading libraries, please wait...");
                 net.techcable.tacospigot.TacoSpigotConfig.init((File) options.valueOf("taco-settings")); // TacoSpigot - load config before we load libraries to allow access while loading
-                System.out.println("Loading libraries, please wait...");
                 MinecraftServer.main(options);
             } catch (Throwable t) {
                 t.printStackTrace();

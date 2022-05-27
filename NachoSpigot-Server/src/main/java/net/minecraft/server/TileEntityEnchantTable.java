@@ -1,8 +1,5 @@
 package net.minecraft.server;
 
-import dev.cobblesword.nachospigot.Nacho;
-import dev.cobblesword.nachospigot.NachoConfig;
-
 import java.util.Random;
 
 public class TileEntityEnchantTable extends TileEntity implements IUpdatePlayerListBox, ITileEntityContainer {
@@ -40,7 +37,7 @@ public class TileEntityEnchantTable extends TileEntity implements IUpdatePlayerL
 
     public void c() {
         // Nacho-0050 - Don't tick Enchantment tables
-        if(!Nacho.get().getConfig().shouldTickEnchantmentTables)
+        if(!world.nachoSpigotConfig.shouldTickEnchantmentTables)
         {
             return;
         }
